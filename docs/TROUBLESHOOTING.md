@@ -128,30 +128,39 @@ The openbox window manager handles fullscreen. If stream is cropped:
 
 ### Monitor stays blank after starting gaming
 
-The monitor may need wake:
+The monitor is controlled via DDC/CI (ddcutil). To manually turn it on:
 ```bash
-curl -X POST http://localhost:3001/monitor-on
+sudo ddcutil setvcp d6 1
 ```
 
-Or directly:
+Or use the control script:
 ```bash
-# With X running:
-DISPLAY=:0 xset dpms force on
-
-# Without X:
-sudo vbetool dpms on
+sudo /usr/local/bin/hdmi-control.sh on
 ```
 
 ### Monitor won't turn off in idle mode
 
-Use vbetool when X isn't running:
+The monitor should turn off automatically when exiting gaming mode. To manually turn it off:
 ```bash
-sudo vbetool dpms off
+sudo ddcutil setvcp d6 5
 ```
 
-Or via API:
+Or use the control script:
 ```bash
-curl -X POST http://localhost:3001/monitor-off
+sudo /usr/local/bin/hdmi-control.sh off
+```
+
+### Monitor control not working
+
+If ddcutil fails, check DDC/CI support:
+```bash
+sudo ddcutil detect
+sudo ddcutil getvcp d6
+```
+
+Ensure the i2c-dev module is loaded:
+```bash
+sudo modprobe i2c-dev
 ```
 
 ## Ansible Issues

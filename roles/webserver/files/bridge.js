@@ -53,10 +53,14 @@ app.get('/apps', (req, res) => {
   });
 });
 
-// Kill Moonlight and X server - monitor goes blank
+// Kill Moonlight and X server, then turn off monitor
 app.post('/exit-gaming', (req, res) => {
-  // Kill Moonlight (works for both native and Flatpak versions)
-  exec('pkill -9 -f moonlight; sleep 0.5; pkill -9 Xorg', (err) => {
+  exec('sudo pkill -9 Xorg; sudo pkill -9 xinit; sudo pkill -9 moonlight', (err) => {
+    // Turn off monitor after X is killed
+    // Clear console, hide cursor, blank framebuffer, then DPMS off
+    setTimeout(() => {
+      exec('sudo sh -c "chvt 1; setterm --cursor off --clear all </dev/tty1 >/dev/tty1; echo 1 > /sys/class/graphics/fb0/blank; vbetool dpms off"');
+    }, 500);
     res.json({ status: 'stopped' });
   });
 });

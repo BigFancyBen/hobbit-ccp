@@ -54,6 +54,25 @@
     group: hobbit
     mode: '0644'
 
+- name: Disable getty on tty1 to keep screen off when idle
+  systemd:
+    name: getty@tty1
+    enabled: no
+    masked: yes
+    state: stopped
+
+- name: Copy HDMI off service
+  copy:
+    src: ../../files/hdmi-off.service
+    dest: /etc/systemd/system/hdmi-off.service
+  notify: Reload systemd
+
+- name: Enable HDMI off service
+  systemd:
+    name: hdmi-off
+    enabled: yes
+    state: started
+
 - name: Display pairing instructions
   debug:
     msg: |

@@ -1,0 +1,11 @@
+[Unit]
+Description=Turn off HDMI output by default
+After=systemd-modules-load.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ddcutil setvcp d6 5
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

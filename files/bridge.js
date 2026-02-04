@@ -20,18 +20,21 @@ app.post('/launch-moonlight', (req, res) => {
       return res.status(400).json({ error: 'Already running. Exit first.' });
     }
 
-    // Launch X with openbox window manager for proper fullscreen handling
-    // Stream at 1080p to match monitor, openbox handles window maximization
-    const cmd = `sudo xinit /bin/sh -c 'xhost +local: && xrandr --output HDMI-2 --mode 1920x1080 && openbox --sm-disable &
+    // Enable HDMI output first, then launch X
+    exec('sudo /usr/local/bin/hdmi-control.sh on', () => {
+      // Launch X with openbox window manager for proper fullscreen handling
+      // Stream at 1080p to match monitor, openbox handles window maximization
+      const cmd = `sudo xinit /bin/sh -c 'xhost +local: && xrandr --output HDMI-2 --mode 1920x1080 && openbox --sm-disable &
 sleep 1 && su hobbit -c "DISPLAY=:0 moonlight stream ${GAMING_PC} \\"${appName}\\" --1080 --fps 60 --display-mode fullscreen"' -- :0 vt7`;
 
-    const child = spawn('sh', ['-c', cmd], {
-      detached: true,
-      stdio: 'ignore'
-    });
-    child.unref();
+      const child = spawn('sh', ['-c', cmd], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      child.unref();
 
-    res.json({ status: 'launching', app: appName });
+      res.json({ status: 'launching', app: appName });
+    });
   });
 });
 
@@ -49,11 +52,13 @@ app.get('/apps', (req, res) => {
   });
 });
 
-// Kill Moonlight and X, then turn off monitor
+// Kill Moonlight and X, then turn off HDMI output at kernel level
 app.post('/exit-gaming', (req, res) => {
   exec('sudo pkill -9 Xorg; sudo pkill -9 xinit; sudo pkill -9 moonlight', (err) => {
-    // Turn off monitor after X is killed
-    setTimeout(() => exec('sudo vbetool dpms off'), 500);
+    // Force HDMI output off via DRM debugfs
+    setTimeout(() => {
+      exec('sudo /usr/local/bin/hdmi-control.sh off');
+    }, 500);
     res.json({ status: 'stopped' });
   });
 });

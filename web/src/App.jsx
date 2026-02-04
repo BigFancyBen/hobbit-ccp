@@ -117,41 +117,14 @@ function App() {
         )}
       </section>
 
-      <section className="card monitor">
-        <h2>Monitor</h2>
-        <div className="button-row">
-          <button
-            onClick={() => systemCommand('monitor-on')}
-            disabled={loading !== null}
-          >
-            On
-          </button>
-          <button
-            onClick={() => systemCommand('monitor-off')}
-            disabled={loading !== null}
-          >
-            Off
-          </button>
-        </div>
-      </section>
-
       <section className="card system">
         <h2>System</h2>
-        <div className="button-row">
-          <button
-            onClick={() => systemCommand('reboot')}
-            disabled={loading !== null}
-          >
-            Reboot
-          </button>
-          <button
-            onClick={() => systemCommand('shutdown')}
-            className="danger"
-            disabled={loading !== null}
-          >
-            Shutdown
-          </button>
-        </div>
+        <button
+          onClick={() => systemCommand('reboot')}
+          disabled={loading !== null}
+        >
+          Reboot
+        </button>
       </section>
     </div>
   );

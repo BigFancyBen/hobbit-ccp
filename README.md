@@ -142,11 +142,8 @@ The bridge service exposes these endpoints (via `/api/control/`):
 | `/health` | GET | Health check |
 | `/apps` | GET | List available games from Sunshine |
 | `/launch-moonlight?app=Desktop` | POST | Start streaming an app (1080p 60fps) |
-| `/exit-gaming` | POST | Stop Moonlight/X and turn off monitor |
-| `/monitor-on` | POST | Turn monitor on (DPMS or vbetool) |
-| `/monitor-off` | POST | Turn monitor off (DPMS or vbetool) |
+| `/exit-gaming` | POST | Stop Moonlight/X and turn off monitor (via DDC/CI) |
 | `/reboot` | POST | Reboot the mini PC |
-| `/shutdown` | POST | Shutdown the mini PC |
 
 ## Verification
 
@@ -155,9 +152,8 @@ After deployment:
 - [ ] `ping hobbit.local` resolves (or use IP)
 - [ ] http://hobbit.local loads React SPA
 - [ ] Status shows "Idle" initially
-- [ ] Gaming buttons launch Moonlight
-- [ ] Monitor on/off works
-- [ ] Exit Gaming Mode stops streaming
+- [ ] Gaming buttons launch Moonlight (monitor turns on automatically)
+- [ ] Exit Gaming Mode stops streaming (monitor turns off automatically)
 
 ## Documentation
 
