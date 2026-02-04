@@ -1,0 +1,65 @@
+---
+- name: Install X11 and AppImage dependencies
+  apt:
+    name:
+      - xserver-xorg
+      - x11-xserver-utils
+      - xinit
+      - libfuse2t64
+      - openbox
+      - vbetool
+    state: present
+
+- name: Download Moonlight AppImage
+  get_url:
+    url: https://github.com/moonlight-stream/moonlight-qt/releases/download/v6.1.0/Moonlight-6.1.0-x86_64.AppImage
+    dest: /home/hobbit/moonlight.AppImage
+    owner: hobbit
+    group: hobbit
+    mode: '0755'
+
+- name: Create moonlight symlink
+  file:
+    src: /home/hobbit/moonlight.AppImage
+    dest: /usr/local/bin/moonlight
+    state: link
+
+- name: Migrate Flatpak pairing to native (if exists)
+  shell: |
+    SRC="/home/hobbit/.var/app/com.moonlight_stream.Moonlight/config/Moonlight Game Streaming Project"
+    DEST="/home/hobbit/.config/Moonlight Game Streaming Project"
+    if [ -d "$SRC" ] && [ ! -d "$DEST" ]; then
+      mkdir -p "$DEST"
+      cp -r "$SRC"/* "$DEST"/
+      chown -R hobbit:hobbit "$DEST"
+    fi
+  changed_when: false
+
+- name: Allow hobbit user to start X
+  lineinfile:
+    path: /etc/X11/Xwrapper.config
+    regexp: '^allowed_users='
+    line: 'allowed_users=anybody'
+    create: yes
+
+- name: Create .xinitrc for hobbit user
+  copy:
+    content: |
+      # Disable screen blanking
+      xset s off
+      xset -dpms
+      xset s noblank
+    dest: /home/hobbit/.xinitrc
+    owner: hobbit
+    group: hobbit
+    mode: '0644'
+
+- name: Display pairing instructions
+  debug:
+    msg: |
+      Moonlight installed! To pair with your gaming PC:
+      1. SSH into this machine
+      2. Run: sudo xinit moonlight -- :0 vt7
+      3. Add your gaming PC's IP in Moonlight
+      4. Enter the PIN shown on your gaming PC
+      5. Exit Moonlight (Ctrl+Q)

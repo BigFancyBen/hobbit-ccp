@@ -1,0 +1,11 @@
+---
+- name: Set up Hobbit Mini PC
+  hosts: minipcs
+  become: yes
+
+  roles:
+    - base        # mDNS, firewall, Docker, Node.js
+    - dns         # Local DNS server (dnsmasq)
+    - moonlight   # X11, Moonlight, pairing prep
+    - zigbee      # Mosquitto, Zigbee2MQTT
+    - webserver   # Nginx, React app, bridge service

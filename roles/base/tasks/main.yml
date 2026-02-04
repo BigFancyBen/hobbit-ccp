@@ -1,0 +1,74 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install base packages
+  apt:
+    name:
+      - avahi-daemon
+      - ca-certificates
+      - curl
+      - ufw
+      - python3-pip
+    state: present
+
+- name: Enable mDNS
+  systemd:
+    name: avahi-daemon
+    enabled: yes
+    state: started
+
+- name: Configure firewall
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+  loop:
+    - "22"    # SSH
+    - "80"    # HTTP
+    - "3001"  # Bridge API
+    - "5353"  # mDNS
+    - "1883"  # MQTT
+
+- name: Allow Docker network to host
+  ufw:
+    rule: allow
+    from_ip: 172.16.0.0/12
+
+- name: Enable firewall
+  ufw:
+    state: enabled
+
+- name: Add Docker GPG key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Add Docker repo
+  apt_repository:
+    repo: "deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+
+- name: Install Docker
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+- name: Add user to docker group
+  user:
+    name: hobbit
+    groups: docker
+    append: yes
+
+- name: Install Node.js
+  shell: |
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    apt-get install -y nodejs
+  args:
+    creates: /usr/bin/node

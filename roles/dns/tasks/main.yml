@@ -1,0 +1,66 @@
+---
+- name: Install dnsmasq
+  apt:
+    name: dnsmasq
+    state: present
+
+- name: Stop systemd-resolved (conflicts with dnsmasq)
+  systemd:
+    name: systemd-resolved
+    state: stopped
+    enabled: no
+  ignore_errors: yes
+
+- name: Configure /etc/resolv.conf to use local dnsmasq
+  copy:
+    content: |
+      # Local DNS via dnsmasq
+      nameserver 127.0.0.1
+    dest: /etc/resolv.conf
+    mode: '0644'
+
+- name: Create dnsmasq systemd override directory
+  file:
+    path: /etc/systemd/system/dnsmasq.service.d
+    state: directory
+    mode: '0755'
+
+- name: Remove any conflicting dnsmasq configs
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/dnsmasq.d/hobbit.conf
+    - /etc/systemd/system/dnsmasq.service.d/no-local-service.conf
+
+- name: Copy dnsmasq configuration
+  copy:
+    src: dnsmasq-local.conf
+    dest: /etc/dnsmasq.d/local.conf
+    mode: '0644'
+  notify: Restart dnsmasq
+
+- name: Fix dnsmasq systemd service type
+  copy:
+    content: |
+      [Service]
+      Type=simple
+      ExecStart=
+      ExecStart=/usr/sbin/dnsmasq -x /run/dnsmasq/dnsmasq.pid -u dnsmasq -7 /etc/dnsmasq.d,.dpkg-dist,.dpkg-old,.dpkg-new -k
+    dest: /etc/systemd/system/dnsmasq.service.d/override.conf
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart dnsmasq
+
+- name: Allow DNS through firewall
+  ufw:
+    rule: allow
+    port: "53"
+
+- name: Enable and start dnsmasq
+  systemd:
+    name: dnsmasq
+    daemon_reload: yes
+    enabled: yes
+    state: started

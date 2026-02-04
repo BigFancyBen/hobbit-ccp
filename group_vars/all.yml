@@ -1,0 +1,7 @@
+# Shared config for all mini PCs
+gaming_pc_host: "192.168.0.69"   # Sunshine server
+timezone: "America/New_York"
+zigbee_device: "/dev/ttyUSB0"
+
+# Docker paths
+hobbit_dir: "/home/hobbit/hobbit"

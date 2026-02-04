@@ -1,0 +1,14 @@
+---
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Enable bridge service
+  systemd:
+    name: hobbit-bridge
+    enabled: yes
+
+- name: Restart bridge service
+  systemd:
+    name: hobbit-bridge
+    state: restarted

@@ -1,0 +1,16 @@
+[Unit]
+Description=Hobbit Control Bridge
+After=network.target
+
+[Service]
+Type=simple
+User=hobbit
+WorkingDirectory=/home/hobbit/hobbit/bridge
+ExecStart=/usr/bin/node bridge.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=GAMING_PC_HOST=192.168.0.69
+
+[Install]
+WantedBy=multi-user.target

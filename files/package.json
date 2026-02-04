@@ -1,0 +1,13 @@
+{
+  "name": "hobbit-bridge",
+  "version": "1.0.0",
+  "description": "Host control bridge for Hobbit Mini PC",
+  "main": "bridge.js",
+  "scripts": {
+    "start": "node bridge.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}

@@ -1,0 +1,98 @@
+---
+- name: Deploy Hobbit configuration
+  hosts: minipcs
+  become: yes
+
+  tasks:
+    - name: Create hobbit directory
+      file:
+        path: "{{ hobbit_dir }}"
+        state: directory
+        owner: hobbit
+        group: hobbit
+
+    - name: Create subdirectories
+      file:
+        path: "{{ hobbit_dir }}/{{ item }}"
+        state: directory
+        owner: hobbit
+        group: hobbit
+      loop:
+        - bridge
+        - web
+        - mosquitto
+        - zigbee2mqtt
+
+    - name: Copy Docker Compose file
+      copy:
+        src: ../files/docker-compose.yml
+        dest: "{{ hobbit_dir }}/docker-compose.yml"
+      notify: Restart docker services
+
+    - name: Copy Nginx config
+      copy:
+        src: ../files/nginx.conf
+        dest: "{{ hobbit_dir }}/nginx.conf"
+      notify: Restart docker services
+
+    - name: Copy Mosquitto config
+      copy:
+        src: ../files/mosquitto.conf
+        dest: "{{ hobbit_dir }}/mosquitto/mosquitto.conf"
+      notify: Restart docker services
+
+    - name: Copy Zigbee2MQTT config
+      template:
+        src: ../files/zigbee2mqtt.yaml.j2
+        dest: "{{ hobbit_dir }}/zigbee2mqtt/configuration.yaml"
+      notify: Restart docker services
+
+    - name: Copy bridge.js
+      copy:
+        src: ../files/bridge.js
+        dest: "{{ hobbit_dir }}/bridge/bridge.js"
+      notify: Restart bridge
+
+    - name: Copy bridge package.json
+      copy:
+        src: ../files/package.json
+        dest: "{{ hobbit_dir }}/bridge/package.json"
+      notify: Restart bridge
+
+    - name: Install bridge dependencies
+      npm:
+        path: "{{ hobbit_dir }}/bridge"
+        state: present
+      become_user: hobbit
+
+    - name: Copy web dist
+      copy:
+        src: ../web/dist/
+        dest: "{{ hobbit_dir }}/web/"
+        owner: hobbit
+        group: hobbit
+      notify: Restart docker services
+
+    - name: Copy bridge service file
+      copy:
+        src: ../files/hobbit-bridge.service
+        dest: /etc/systemd/system/hobbit-bridge.service
+      notify:
+        - Reload systemd
+        - Restart bridge
+
+  handlers:
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Restart bridge
+      systemd:
+        name: hobbit-bridge
+        state: restarted
+        enabled: yes
+
+    - name: Restart docker services
+      shell: |
+        cd {{ hobbit_dir }}
+        docker compose up -d --force-recreate

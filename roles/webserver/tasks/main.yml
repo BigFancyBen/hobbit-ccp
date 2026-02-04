@@ -1,0 +1,60 @@
+---
+- name: Create hobbit directories
+  file:
+    path: "{{ hobbit_dir }}/{{ item }}"
+    state: directory
+    owner: hobbit
+    group: hobbit
+  loop:
+    - bridge
+    - web
+
+- name: Copy bridge.js
+  copy:
+    src: bridge.js
+    dest: "{{ hobbit_dir }}/bridge/bridge.js"
+    owner: hobbit
+    group: hobbit
+    mode: '0644'
+  notify: Restart bridge service
+
+- name: Copy package.json
+  copy:
+    src: package.json
+    dest: "{{ hobbit_dir }}/bridge/package.json"
+    owner: hobbit
+    group: hobbit
+    mode: '0644'
+
+- name: Install bridge dependencies
+  command: npm install --production
+  args:
+    chdir: "{{ hobbit_dir }}/bridge"
+  become: yes
+  become_user: hobbit
+  changed_when: false
+
+- name: Copy bridge service file
+  copy:
+    src: hobbit-bridge.service
+    dest: /etc/systemd/system/hobbit-bridge.service
+  notify:
+    - Reload systemd
+    - Enable bridge service
+    - Restart bridge service
+
+- name: Allow hobbit to run shutdown/reboot without password
+  copy:
+    content: |
+      hobbit ALL=(ALL) NOPASSWD: /sbin/shutdown, /sbin/reboot
+    dest: /etc/sudoers.d/hobbit-power
+    mode: '0440'
+    validate: 'visudo -cf %s'
+
+- name: Allow hobbit to run gaming commands without password
+  copy:
+    content: |
+      hobbit ALL=(ALL) NOPASSWD: /usr/bin/xinit, /usr/bin/pkill, /usr/bin/rm, /usr/sbin/vbetool
+    dest: /etc/sudoers.d/hobbit-gaming
+    mode: '0440'
+    validate: 'visudo -cf %s'

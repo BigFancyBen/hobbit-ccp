@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ansible minipcs -m ping:*)",
+      "Bash(wsl --list:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(curl:*)",
+      "Bash(ping:*)",
+      "Bash(wsl -d Ubuntu -e bash -c \"cp /mnt/c/Users/Tango/.ssh/id_ed25519* ~/.ssh/ && chmod 600 ~/.ssh/id_ed25519 && chmod 644 ~/.ssh/id_ed25519.pub && cp /mnt/c/Users/Tango/.ssh/known_hosts ~/.ssh/\")",
+      "Bash(wsl -e ssh hobbit@192.168.0.67 \"curl -s http://localhost/ | head -20\")",
+      "Bash(wsl -e ssh:*)",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible hobbit -i inventory.ini -m copy -a ''src=roles/dns/files/dnsmasq-local.conf dest=/etc/dnsmasq.d/local.conf mode=0644'' -e ''ansible_become_password=\"\"advanced gear check\"\"'' -b\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible hobbit -i inventory.ini -m file -a ''path=/etc/systemd/system/dnsmasq.service.d state=directory mode=0755'' -e ''ansible_become_password=\"\"advanced gear check\"\"'' -b\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible hobbit -i inventory.ini -m ufw -a 'rule=allow port=53' -e 'ansible_become_password=\\\\\"advanced gear check\\\\\"' -b\":*)",
+      "Bash(wsl bash -c \"cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible-playbook playbooks/deploy.yml -i inventory.ini\")"
+    ]
+  }
+}
