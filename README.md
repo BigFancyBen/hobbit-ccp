@@ -20,6 +20,7 @@ Transform a Peladn mini PC into a hybrid beast: a 24/7 silent server that can "w
 │  - Bridge.js controls Moonlight     │
 │  - Zigbee2MQTT for smart home       │
 │  - Mosquitto MQTT broker            │
+│  - Netdata monitoring (:19999)      │
 └─────────────────────────────────────┘
                 │
                 ▼ Network stream
@@ -56,11 +57,12 @@ Transform a Peladn mini PC into a hybrid beast: a 24/7 silent server that can "w
 
 2. Update `group_vars/all.yml` with your gaming PC's IP
 
-3. Run the setup playbook (from WSL on Windows):
+3. Run the setup playbook (first time requires password, from WSL on Windows):
    ```bash
    cd /mnt/c/Users/YOUR_USER/path/to/minipc-setup
    ansible-playbook playbooks/setup.yml -i inventory.ini -e 'ansible_become_password="YOUR_SUDO_PASSWORD"'
    ```
+   This configures passwordless sudo for future deployments.
 
 4. Pair Moonlight with your gaming PC (one-time). See [docs/MOONLIGHT-PAIRING.md](docs/MOONLIGHT-PAIRING.md):
    ```bash
@@ -69,20 +71,11 @@ Transform a Peladn mini PC into a hybrid beast: a 24/7 silent server that can "w
    # Pair with gaming PC (enter PIN shown on screen), then Ctrl+Q to exit
    ```
 
-5. Build and deploy the web UI:
+5. Deploy the web UI and configs (from Git Bash on Windows):
    ```bash
-   # Build on Windows
-   cd web && npm install && npm run build
-
-   # Deploy via Ansible (from WSL)
-   ansible-playbook playbooks/deploy.yml -i inventory.ini -e 'ansible_become_password="YOUR_SUDO_PASSWORD"'
+   ./deploy.sh
    ```
-
-6. Start Docker services:
-   ```bash
-   ssh hobbit@192.168.0.67
-   cd /home/hobbit/hobbit && docker compose up -d
-   ```
+   This single command builds the web UI, deploys via Ansible, and verifies services.
 
 ## Hostnames & DNS Server
 
@@ -167,6 +160,33 @@ The server is hardened for LAN-only access:
 - **Nginx**: Security headers + hostname validation
 
 See [docs/SECURITY.md](docs/SECURITY.md) for full details.
+
+## Monitoring
+
+Real-time system monitoring via Netdata at http://hobbit.local:19999
+
+Monitors CPU, RAM, disk, network, Docker containers, and system temperature.
+
+## Backups
+
+Automatic weekly backups run every Sunday at 2am via systemd timer.
+
+**Backup location:** `/home/hobbit/backups/`
+
+**What's backed up:**
+- `/home/hobbit/hobbit/` (all configs and data)
+- `/etc/dnsmasq.d/` (DNS configuration)
+- `/etc/ssh/sshd_config.d/` (SSH hardening)
+
+**Manual backup:**
+```bash
+ssh hobbit@192.168.0.67 'sudo /usr/local/bin/backup.sh'
+```
+
+**Check timer status:**
+```bash
+ssh hobbit@192.168.0.67 'systemctl status hobbit-backup.timer'
+```
 
 ## Documentation
 

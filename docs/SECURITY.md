@@ -26,6 +26,7 @@ All services are restricted to the local subnet `192.168.0.0/24`.
 | 1883 | MQTT | Mosquitto broker |
 | 3001 | Bridge API | Moonlight/monitor control |
 | 5353 | mDNS | avahi-daemon |
+| 19999 | Netdata | System monitoring |
 
 **Configuration:** [roles/base/tasks/main.yml](../roles/base/tasks/main.yml)
 
@@ -43,6 +44,7 @@ All services are restricted to the local subnet `192.168.0.0/24`.
     - "3001"  # Bridge API
     - "5353"  # mDNS
     - "1883"  # MQTT
+    - "19999" # Netdata monitoring
 ```
 
 ### 2. SSH Key-Only Authentication
@@ -202,13 +204,14 @@ Internet
 │  UFW Firewall: deny incoming, allow outgoing            │
 │  ┌─────────────────────────────────────────────────┐    │
 │  │ Allowed from 192.168.0.0/24 only:               │    │
-│  │   :22   SSH (key-only)                          │    │
-│  │   :53   DNS                                     │    │
-│  │   :80   HTTP                                    │    │
-│  │   :853  DNS-over-TLS                            │    │
-│  │   :1883 MQTT                                    │    │
-│  │   :3001 Bridge API                              │    │
-│  │   :5353 mDNS                                    │    │
+│  │   :22    SSH (key-only)                         │    │
+│  │   :53    DNS                                    │    │
+│  │   :80    HTTP                                   │    │
+│  │   :853   DNS-over-TLS                           │    │
+│  │   :1883  MQTT                                   │    │
+│  │   :3001  Bridge API                             │    │
+│  │   :5353  mDNS                                   │    │
+│  │   :19999 Netdata                                │    │
 │  └─────────────────────────────────────────────────┘    │
 │                                                         │
 │  Outbound: ──────────────────────────────────────► OK   │

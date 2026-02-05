@@ -1,6 +1,6 @@
 # Deploy Configuration Changes
 
-Deploy configuration changes to the Hobbit mini PC using Ansible.
+Deploy configuration changes to the Hobbit mini PC.
 
 ## When to Use
 Use this skill when the user wants to:
@@ -10,26 +10,38 @@ Use this skill when the user wants to:
 
 ## Instructions
 
-1. **Confirm the web UI is built** (if web changes were made):
+**Use the unified deploy script (from Git Bash on Windows):**
+```bash
+./deploy.sh
+```
+
+This script automatically:
+1. Builds the web UI (`npm run build`)
+2. Deploys via Ansible (passwordless - no password needed)
+3. Verifies services are running
+
+## Manual Deployment (if needed)
+
+If you need to run steps individually:
+
+1. **Build web UI:**
    ```bash
    cd web && npm run build
    ```
 
-2. **Run the deploy playbook via WSL**:
+2. **Run the deploy playbook via WSL:**
    ```bash
-   wsl -e bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible-playbook playbooks/deploy.yml -i inventory.ini -e 'ansible_become_password=\"SUDO_PASSWORD\"'"
+   wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible-playbook playbooks/deploy.yml -i inventory.ini"
    ```
 
-3. **Ask the user for the sudo password** if not provided. The password is for the `hobbit` user on the mini PC.
-
 ## Important Notes
+- Passwordless sudo is configured - no password required for deployments
 - Always use `-i inventory.ini` explicitly (ansible.cfg is ignored on Windows mounts)
 - The mini PC IP is defined in `inventory.ini` (default: 192.168.0.67)
-- Deploy uses the `copy` module, not `synchronize` (WSL compatibility)
-- After deploy, Docker services may need restart: `docker compose up -d`
+- Health checks run automatically after deployment
 
 ## Key Files Deployed
 - `files/docker-compose.yml` -> `/home/hobbit/hobbit/docker-compose.yml`
-- `files/bridge.js` -> `/home/hobbit/hobbit/bridge.js`
+- `files/bridge.js` -> `/home/hobbit/hobbit/bridge/bridge.js`
 - `files/nginx.conf` -> `/home/hobbit/hobbit/nginx.conf`
-- `web/dist/` -> `/home/hobbit/hobbit/www/`
+- `web/dist/` -> `/home/hobbit/hobbit/web/`

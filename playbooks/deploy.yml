@@ -96,3 +96,47 @@
       shell: |
         cd {{ hobbit_dir }}
         docker compose up -d --force-recreate
+
+# Health checks after deployment
+- name: Verify deployment
+  hosts: minipcs
+  become: no
+  gather_facts: no
+
+  tasks:
+    - name: Wait for services to start
+      pause:
+        seconds: 10
+
+    - name: Check bridge API health
+      uri:
+        url: http://localhost:3001/health
+        return_content: yes
+      register: bridge_health
+      failed_when: false
+
+    - name: Check Nginx is responding
+      uri:
+        url: http://localhost/
+        return_content: no
+        headers:
+          Host: hobbit.local
+      register: nginx_health
+      failed_when: false
+
+    - name: Check Docker containers running
+      command: 'docker ps --format "{% raw %}{{.Names}}: {{.Status}}{% endraw %}"'
+      register: docker_status
+      changed_when: false
+
+    - name: Display container status
+      debug:
+        var: docker_status.stdout_lines
+
+    - name: Deployment health summary
+      debug:
+        msg: |
+          === Deployment Health Check ===
+          Bridge API: {{ 'OK' if bridge_health.status == 200 else 'FAILED (status: ' ~ bridge_health.status | default('N/A') ~ ')' }}
+          Nginx:      {{ 'OK' if nginx_health.status == 200 else 'FAILED (status: ' ~ nginx_health.status | default('N/A') ~ ')' }}
+          Containers: {{ docker_status.stdout_lines | length }} running

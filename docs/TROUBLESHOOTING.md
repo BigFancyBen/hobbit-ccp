@@ -202,6 +202,7 @@ sudo ufw status
 | 1883 | MQTT | Mosquitto broker |
 | 3001 | Bridge API | Moonlight/monitor control |
 | 5353 | mDNS | avahi-daemon |
+| 19999 | Netdata | System monitoring |
 
 ### Android shows "Connected, no internet"
 

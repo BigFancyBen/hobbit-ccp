@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Hobbit Backup Weekly
+
+[Timer]
+OnCalendar=Sun 02:00
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

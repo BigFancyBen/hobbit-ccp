@@ -43,6 +43,7 @@
     - "3001"  # Bridge API
     - "5353"  # mDNS
     - "1883"  # MQTT
+    - "19999" # Netdata monitoring
 
 - name: Allow Docker network to host
   ufw:
@@ -85,3 +86,36 @@
     apt-get install -y nodejs
   args:
     creates: /usr/bin/node
+
+# Passwordless sudo for Ansible deployments
+- name: Allow hobbit passwordless sudo
+  copy:
+    content: |
+      hobbit ALL=(ALL) NOPASSWD: ALL
+    dest: /etc/sudoers.d/hobbit-ansible
+    mode: '0440'
+    validate: 'visudo -cf %s'
+
+# Backup automation
+- name: Copy backup script
+  copy:
+    src: backup.sh
+    dest: /usr/local/bin/backup.sh
+    mode: '0755'
+
+- name: Copy backup service
+  copy:
+    src: hobbit-backup.service
+    dest: /etc/systemd/system/hobbit-backup.service
+
+- name: Copy backup timer
+  copy:
+    src: hobbit-backup.timer
+    dest: /etc/systemd/system/hobbit-backup.timer
+
+- name: Enable backup timer
+  systemd:
+    name: hobbit-backup.timer
+    enabled: yes
+    state: started
+    daemon_reload: yes
