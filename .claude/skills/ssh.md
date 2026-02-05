@@ -1,58 +1,69 @@
-# SSH to Hobbit Mini PC
+---
+name: ssh
+description: Connect to the Hobbit mini PC via SSH. Use when running commands, checking logs, viewing service status, managing Docker containers, or debugging issues on the server.
+---
 
-Connect to the Hobbit mini PC via SSH.
+# Connect
 
-## When to Use
-Use this skill when the user wants to:
-- SSH into the mini PC
-- Run commands on the mini PC
-- Check services or logs on the mini PC
-
-## Connection Options
-
-### From Windows (via WSL)
+From Windows (via WSL):
 ```bash
 wsl -e ssh hobbit@192.168.0.67
 ```
 
-### Using hostname (requires DNS/mDNS)
+Or using hostname (requires mDNS):
 ```bash
 wsl -e ssh hobbit@hobbit.local
 ```
 
-## Common Commands Once Connected
+# Common Commands
 
-### Check service status
+## Service Status
+
 ```bash
-systemctl status hobbit-bridge
-systemctl status avahi-daemon
-systemctl status dnsmasq
+systemctl status hobbit-bridge       # Bridge API
+systemctl status avahi-daemon        # mDNS
+systemctl status dnsmasq             # DNS server
+systemctl status hobbit-backup.timer # Backup timer
 ```
 
-### View logs
+## View Logs
+
 ```bash
-journalctl -u hobbit-bridge -f      # Bridge service logs
-docker compose logs -f              # Docker container logs
-journalctl -f                       # System logs
+journalctl -u hobbit-bridge -f       # Bridge service
+docker compose logs -f               # All containers
+docker compose logs -f webserver     # Specific container
+journalctl -f                        # System logs
 ```
 
-### Docker operations
+## Docker Operations
+
 ```bash
 cd /home/hobbit/hobbit
-docker compose ps                   # List containers
-docker compose up -d                # Start containers
-docker compose restart              # Restart containers
-docker compose logs -f webserver    # Specific container logs
+docker compose ps                    # List containers
+docker compose up -d                 # Start containers
+docker compose restart               # Restart all
+docker compose logs -f netdata       # Netdata logs
 ```
 
-### Check gaming mode processes
+## Gaming Mode Processes
+
 ```bash
 pgrep -a Xorg
 pgrep -a openbox
 pgrep -a moonlight
 ```
 
-## Network Info
-- **Mini PC IP**: 192.168.0.67
-- **Gaming PC IP**: 192.168.0.69
-- **User**: hobbit
+## Manual Backup
+
+```bash
+sudo /usr/local/bin/backup.sh
+ls -lh /home/hobbit/backups/
+```
+
+# Network Info
+
+| Host | IP |
+|------|-----|
+| Mini PC | 192.168.0.67 |
+| Gaming PC | 192.168.0.69 |
+| User | hobbit |

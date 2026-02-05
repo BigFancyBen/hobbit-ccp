@@ -1,71 +1,65 @@
-# DNS Server Configuration
+---
+name: dns
+description: Configure the dnsmasq local DNS server on the Hobbit mini PC. Use when adding hostnames, setting up router DNS, troubleshooting name resolution, or configuring hobbit.house domain.
+---
 
-Configure and manage the dnsmasq local DNS server on the Hobbit mini PC.
+# How It Works
 
-## When to Use
-Use this skill when the user wants to:
-- Add new local hostnames
-- Configure router DNS settings
-- Troubleshoot DNS resolution
-- Understand how local DNS works
-
-## How It Works
-
-1. **dnsmasq** runs on the mini PC (port 53)
-2. Router DHCP points clients to hobbit (192.168.0.67) for DNS
+1. **dnsmasq** runs on mini PC (port 53)
+2. Router DHCP points clients to 192.168.0.67 for DNS
 3. dnsmasq resolves local hostnames, forwards others to Cloudflare/Google
 
-## Current Hostnames
+# Current Hostnames
 
 | Hostname | Resolves To |
 |----------|-------------|
 | `hobbit.house` | 192.168.0.67 |
-| `hobbit.local` | 192.168.0.67 |
+| `hobbit.local` | 192.168.0.67 (mDNS) |
 | `hobbit` | 192.168.0.67 |
 
-## Router Configuration
+# Router Configuration
 
 Point your router's DNS to the mini PC:
+
 1. Log into router admin panel
 2. Find DHCP settings
 3. Set primary DNS: `192.168.0.67`
 4. Optional secondary DNS: `8.8.8.8` (fallback)
-5. Clients need to renew DHCP lease (or reconnect WiFi)
+5. Clients reconnect WiFi to get new settings
 
-## Adding New Hostnames
+# Adding New Hostnames
 
-Edit `/etc/dnsmasq.d/local.conf` on the mini PC:
+Edit `/etc/dnsmasq.d/local.conf`:
 
 ```bash
 # Add a new hostname
 address=/myservice.house/192.168.0.67
 
-# Or point to a different IP
+# Point to different IP
 address=/nas.house/192.168.0.100
 ```
 
-Then restart dnsmasq:
+Then restart:
 ```bash
 sudo systemctl restart dnsmasq
 ```
 
-## Testing DNS
+# Testing DNS
 
 ```bash
-# From any device on network
+# From any network device
 nslookup hobbit.house
 
-# Directly test the DNS server
+# Direct test
 dig hobbit.house @192.168.0.67 +short
 ```
 
-## Configuration File Location
+# Configuration
 
-Main config: `/etc/dnsmasq.d/local.conf`
+- Main config: `/etc/dnsmasq.d/local.conf`
+- Ansible role: `roles/dns/`
 
-Ansible role: `roles/dns/`
-
-## Troubleshooting
+# Troubleshooting
 
 **DNS queries timeout**
 ```bash
@@ -78,7 +72,7 @@ sudo ufw status | grep 53
 dig google.com @1.1.1.1
 ```
 
-**Enable logging**
+**Enable query logging**
 ```bash
 # Add to /etc/dnsmasq.d/local.conf
 log-queries
@@ -86,4 +80,10 @@ log-queries
 # Restart and watch
 sudo systemctl restart dnsmasq
 journalctl -u dnsmasq -f
+```
+
+**Android "no internet" warning**
+Port 853 (DNS-over-TLS) must be open. Check firewall:
+```bash
+sudo ufw status | grep 853
 ```
