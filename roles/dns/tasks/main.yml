@@ -53,10 +53,11 @@
     - Reload systemd
     - Restart dnsmasq
 
-- name: Allow DNS through firewall
+- name: Allow DNS through firewall - LAN only
   ufw:
     rule: allow
     port: "53"
+    from_ip: "{{ lan_subnet }}"
 
 - name: Enable and start dnsmasq
   systemd:

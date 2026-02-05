@@ -119,6 +119,7 @@ minipc-setup/
 │   └── deploy.yml            # Deploy config updates
 ├── roles/
 │   ├── base/                 # mDNS, firewall, Docker, Node.js
+│   ├── security/             # SSH hardening, unattended-upgrades
 │   ├── dns/                  # dnsmasq DNS server
 │   ├── moonlight/            # X11, Moonlight AppImage, openbox
 │   ├── zigbee/               # Zigbee2MQTT, Mosquitto
@@ -128,6 +129,7 @@ minipc-setup/
 │   ├── ANSIBLE-WSL-GUIDE.md  # Running Ansible from Windows
 │   ├── DNS-SERVER.md         # Local DNS server setup
 │   ├── MOONLIGHT-PAIRING.md  # Pairing with Sunshine
+│   ├── SECURITY.md           # Security hardening guide
 │   └── TROUBLESHOOTING.md    # Common issues and fixes
 └── web/                      # React SPA
 ```
@@ -155,9 +157,21 @@ After deployment:
 - [ ] Gaming buttons launch Moonlight (monitor turns on automatically)
 - [ ] Exit Gaming Mode stops streaming (monitor turns off automatically)
 
+## Security
+
+The server is hardened for LAN-only access:
+
+- **Firewall**: UFW restricts all ports to `192.168.0.0/24` only
+- **SSH**: Key-only authentication (no passwords over network)
+- **Auto-updates**: Security patches applied automatically via `unattended-upgrades`
+- **Nginx**: Security headers + hostname validation
+
+See [docs/SECURITY.md](docs/SECURITY.md) for full details.
+
 ## Documentation
 
 - [Running Ansible from Windows (WSL)](docs/ANSIBLE-WSL-GUIDE.md)
 - [DNS Server Setup](docs/DNS-SERVER.md)
 - [Moonlight Pairing Guide](docs/MOONLIGHT-PAIRING.md)
+- [Security Hardening](docs/SECURITY.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)

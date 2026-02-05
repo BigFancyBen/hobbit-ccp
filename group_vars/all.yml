@@ -5,3 +5,6 @@ zigbee_device: "/dev/ttyUSB0"
 
 # Docker paths
 hobbit_dir: "/home/hobbit/hobbit"
+
+# Network security
+lan_subnet: "192.168.0.0/24"

@@ -193,18 +193,37 @@ sudo ufw status
 
 ### Required ports
 
-| Port | Service |
-|------|---------|
-| 22 | SSH |
-| 80 | HTTP (web UI) |
-| 1883 | MQTT |
-| 3001 | Bridge API |
-| 5353 | mDNS |
+| Port | Service | Notes |
+|------|---------|-------|
+| 22 | SSH | Key-only authentication |
+| 53 | DNS | dnsmasq |
+| 80 | HTTP | Web UI |
+| 853 | DNS-over-TLS | Required for Android |
+| 1883 | MQTT | Mosquitto broker |
+| 3001 | Bridge API | Moonlight/monitor control |
+| 5353 | mDNS | avahi-daemon |
 
-### Allow a port
+### Android shows "Connected, no internet"
+
+Android uses DNS-over-TLS (port 853) by default. If this port is blocked, Android reports no internet even though regular DNS works.
+
+**Fix**: Ensure port 853 is allowed in firewall:
+```bash
+sudo ufw allow from 192.168.0.0/24 to any port 853
+```
+
+### Check for blocked connections
 
 ```bash
-sudo ufw allow 3001
+sudo dmesg | grep "UFW BLOCK" | tail -20
+```
+
+This shows recent firewall blocks with source IP and port - useful for debugging.
+
+### Allow a port (LAN only)
+
+```bash
+sudo ufw allow from 192.168.0.0/24 to any port 3001
 ```
 
 ## Logs

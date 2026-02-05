@@ -20,13 +20,26 @@
     enabled: yes
     state: started
 
-- name: Configure firewall
+- name: Set UFW default deny incoming
+  ufw:
+    direction: incoming
+    default: deny
+
+- name: Set UFW default allow outgoing
+  ufw:
+    direction: outgoing
+    default: allow
+
+- name: Configure firewall - LAN only
   ufw:
     rule: allow
     port: "{{ item }}"
+    from_ip: "{{ lan_subnet }}"
   loop:
     - "22"    # SSH
+    - "53"    # DNS (dnsmasq)
     - "80"    # HTTP
+    - "853"   # DNS-over-TLS (Android uses this)
     - "3001"  # Bridge API
     - "5353"  # mDNS
     - "1883"  # MQTT
