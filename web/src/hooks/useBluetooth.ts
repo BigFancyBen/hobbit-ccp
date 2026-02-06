@@ -1,4 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getCache, setCache } from '@/lib/cache';
+
+const CACHE_KEY = 'bluetooth-devices';
 
 interface BluetoothDevice {
   mac: string;
@@ -13,10 +16,11 @@ interface DiscoveredDevice {
 }
 
 export function useBluetooth(refreshInterval = 3000) {
-  const [devices, setDevices] = useState<BluetoothDevice[]>([]);
+  const cachedDevices = getCache<BluetoothDevice[]>(CACHE_KEY);
+  const [devices, setDevices] = useState<BluetoothDevice[]>(cachedDevices ?? []);
   const [discovered, setDiscovered] = useState<DiscoveredDevice[]>([]);
   const [scanning, setScanning] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedDevices);
   const [error, setError] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async () => {
@@ -25,6 +29,7 @@ export function useBluetooth(refreshInterval = 3000) {
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setDevices(data.devices);
+      setCache(CACHE_KEY, data.devices);
       setScanning(data.scanning);
       setLoading(false);
       setError(null);

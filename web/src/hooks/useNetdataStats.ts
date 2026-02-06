@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { getCache, setCache } from '@/lib/cache';
 
 const NETDATA_BASE = '/netdata';
+const CACHE_KEY = 'netdata-stats';
 
 interface CpuStats {
   usage: number;
@@ -43,14 +45,20 @@ interface NetdataResponse {
 }
 
 export function useNetdataStats(refreshInterval = 3000): Stats {
-  const [stats, setStats] = useState<Stats>({
-    cpu: null,
-    ram: null,
-    disk: null,
-    network: null,
-    gpu: null,
-    loading: true,
-    error: null
+  const [stats, setStats] = useState<Stats>(() => {
+    const cached = getCache<Stats>(CACHE_KEY);
+    if (cached) {
+      return { ...cached, loading: false, error: null };
+    }
+    return {
+      cpu: null,
+      ram: null,
+      disk: null,
+      network: null,
+      gpu: null,
+      loading: true,
+      error: null
+    };
   });
 
   useEffect(() => {
@@ -72,7 +80,7 @@ export function useNetdataStats(refreshInterval = 3000): Stats {
           netRes.ok ? netRes.json() : null
         ]);
 
-        setStats({
+        const newStats: Stats = {
           cpu: cpuData ? parseCpuData(cpuData) : null,
           ram: ramData ? parseRamData(ramData) : null,
           disk: diskData ? parseDiskData(diskData) : null,
@@ -80,7 +88,9 @@ export function useNetdataStats(refreshInterval = 3000): Stats {
           gpu: gpuData ? parseGpuData(gpuData) : null,
           loading: false,
           error: null
-        });
+        };
+        setStats(newStats);
+        setCache(CACHE_KEY, newStats);
       } catch {
         setStats(prev => ({
           ...prev,

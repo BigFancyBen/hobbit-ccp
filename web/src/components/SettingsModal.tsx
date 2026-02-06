@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useTransition, animated, to } from '@react-spring/web';
+import { useTransition, animated } from '@react-spring/web';
 import { Button } from '@/components/ui/8bit/button';
 import { StatsTab } from './StatsTab';
 import { SystemTab } from './SystemTab';
@@ -48,11 +48,31 @@ interface SettingsModalProps {
   loading: string | null;
 }
 
+const TABS = ['stats', 'system'] as const;
+type TabKey = (typeof TABS)[number];
+
 export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
-  const [tab, setTab] = useState<'stats' | 'system'>('stats');
+  const [tab, setTab] = useState<TabKey>('stats');
   const [isOpen, setIsOpen] = useState(false);
+  const prevTabIndexRef = useRef(0);
 
   const handleClose = () => setIsOpen(false);
+
+  // Calculate animation direction based on tab change
+  const currentIndex = TABS.indexOf(tab);
+  const direction = currentIndex > prevTabIndexRef.current ? 1 : -1;
+
+  useEffect(() => {
+    prevTabIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  // Tab content transition
+  const tabTransition = useTransition(tab, {
+    from: { opacity: 0, x: direction * 50 },
+    enter: { opacity: 1, x: 0 },
+    leave: { opacity: 0, x: -direction * 50, position: 'absolute' as const },
+    config: { tension: 300, friction: 26 },
+  });
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -150,9 +170,20 @@ export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
                 </div>
 
                 {/* Tab Content */}
-                <div className="h-104 overflow-y-auto overflow-x-hidden px-1">
-                  {tab === 'stats' && <StatsTab />}
-                  {tab === 'system' && <SystemTab onReboot={onReboot} loading={loading} />}
+                <div className="h-104 overflow-y-auto overflow-x-hidden px-1 relative">
+                  {tabTransition((style, currentTab) => (
+                    <animated.div
+                      style={{
+                        ...style,
+                        width: '100%',
+                        top: 0,
+                        left: 0,
+                      }}
+                    >
+                      {currentTab === 'stats' && <StatsTab />}
+                      {currentTab === 'system' && <SystemTab onReboot={onReboot} loading={loading} />}
+                    </animated.div>
+                  ))}
                 </div>
               </div>
             </div>
