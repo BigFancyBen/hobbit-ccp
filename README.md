@@ -99,6 +99,8 @@ npm run dev
 # Opens http://localhost:5173
 ```
 
+See [docs/WEB-UI.md](docs/WEB-UI.md) for web UI architecture, 8bitcn components, and theming.
+
 ## Project Structure
 
 ```
@@ -123,8 +125,9 @@ minipc-setup/
 │   ├── DNS-SERVER.md         # Local DNS server setup
 │   ├── MOONLIGHT-PAIRING.md  # Pairing with Sunshine
 │   ├── SECURITY.md           # Security hardening guide
-│   └── TROUBLESHOOTING.md    # Common issues and fixes
-└── web/                      # React SPA
+│   ├── TROUBLESHOOTING.md    # Common issues and fixes
+│   └── WEB-UI.md             # Web UI development guide
+└── web/                      # React TypeScript SPA (8bitcn)
 ```
 
 ## API Endpoints
@@ -195,3 +198,4 @@ ssh hobbit@192.168.0.67 'systemctl status hobbit-backup.timer'
 - [Moonlight Pairing Guide](docs/MOONLIGHT-PAIRING.md)
 - [Security Hardening](docs/SECURITY.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Web UI Development](docs/WEB-UI.md)
