@@ -9,6 +9,8 @@ The Hobbit web UI is a React TypeScript application using the 8bitcn component l
 - **Vite** - Build tool and dev server
 - **Tailwind CSS v4** - Utility-first CSS
 - **8bitcn/ui** - Retro 8-bit styled component library (shadcn-based)
+- **react-spring** - Physics-based animations
+- **Sonner** - Toast notifications
 - **Atari Theme** - Custom oklch color scheme
 
 ## Project Structure
@@ -17,18 +19,36 @@ The Hobbit web UI is a React TypeScript application using the 8bitcn component l
 web/
 ├── src/
 │   ├── components/
+│   │   ├── GameLauncher/       # Game launcher components
+│   │   │   ├── index.tsx       # Main launcher container
+│   │   │   ├── StatusBadge.tsx # Animated status indicator
+│   │   │   ├── AppButton.tsx   # Game launch button with skeleton
+│   │   │   ├── AppGrid.tsx     # Grid with skeleton loading
+│   │   │   └── ExitButton.tsx  # Exit gaming button
+│   │   ├── Stats/              # System stats components
+│   │   │   ├── index.tsx       # Exports all stats components
+│   │   │   ├── CpuBar.tsx      # HealthBar wrapper for CPU
+│   │   │   ├── RamBar.tsx      # ManaBar wrapper for RAM
+│   │   │   ├── DiskBar.tsx     # Progress bar for disk
+│   │   │   └── NetworkBadges.tsx # Network up/down badges
 │   │   ├── ui/
 │   │   │   ├── 8bit/           # 8bitcn components (from registry)
 │   │   │   │   ├── button.tsx
 │   │   │   │   ├── card.tsx
 │   │   │   │   ├── dialog.tsx
 │   │   │   │   ├── tabs.tsx
+│   │   │   │   ├── badge.tsx
+│   │   │   │   ├── alert.tsx
+│   │   │   │   ├── skeleton.tsx
+│   │   │   │   ├── spinner.tsx
+│   │   │   │   ├── progress.tsx
+│   │   │   │   ├── health-bar.tsx
+│   │   │   │   ├── mana-bar.tsx
+│   │   │   │   ├── empty.tsx
+│   │   │   │   ├── toast.tsx
 │   │   │   │   └── styles/
 │   │   │   │       └── retro.css
-│   │   │   ├── button.tsx      # Base shadcn components
-│   │   │   ├── card.tsx
-│   │   │   ├── dialog.tsx
-│   │   │   └── tabs.tsx
+│   │   │   └── *.tsx           # Base shadcn components
 │   │   ├── SettingsModal.tsx   # Settings dialog with tabs
 │   │   ├── StatsTab.tsx        # Netdata system stats
 │   │   └── SystemTab.tsx       # Reboot controls
@@ -37,7 +57,7 @@ web/
 │   ├── lib/
 │   │   └── utils.ts            # shadcn utility functions
 │   ├── App.tsx                 # Main application
-│   ├── main.tsx                # Entry point
+│   ├── main.tsx                # Entry point with Toaster
 │   └── index.css               # Tailwind + Atari theme
 ├── components.json             # shadcn/8bitcn configuration
 ├── tsconfig.json               # TypeScript config
@@ -48,6 +68,24 @@ web/
 ## 8bitcn Component Library
 
 We use the official 8bitcn registry for retro-styled components.
+
+### Installed Components
+
+| Component | Purpose |
+|-----------|---------|
+| Button | Pixel-bordered buttons |
+| Card | Content containers |
+| Dialog | Modal dialogs |
+| Tabs | Tabbed interfaces |
+| Badge | Status indicators |
+| Alert | Error/warning messages |
+| Skeleton | Loading placeholders |
+| Spinner | Loading spinners |
+| Progress | Progress bars |
+| Health Bar | Red health-style bar (CPU) |
+| Mana Bar | Blue mana-style bar (RAM) |
+| Empty | Empty state placeholders |
+| Toast | Toast notifications |
 
 ### Adding Components
 
@@ -77,14 +115,13 @@ The `components.json` configures the 8bitcn registry:
 Always import from the 8bit subdirectory for retro styling:
 
 ```tsx
-// Correct - uses 8-bit styled version
+// 8-bit styled versions
 import { Button } from '@/components/ui/8bit/button';
-import { Card, CardContent } from '@/components/ui/8bit/card';
-import { Dialog, DialogContent } from '@/components/ui/8bit/dialog';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/8bit/tabs';
-
-// Base shadcn (no 8-bit styling)
-import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/8bit/badge';
+import { Skeleton } from '@/components/ui/8bit/skeleton';
+import { Spinner } from '@/components/ui/8bit/spinner';
+import HealthBar from '@/components/ui/8bit/health-bar';
+import ManaBar from '@/components/ui/8bit/mana-bar';
 ```
 
 ### Font Styling
@@ -93,6 +130,82 @@ The `retro` class applies the Press Start 2P pixel font:
 
 ```tsx
 <h1 className="retro">Pixel Text</h1>
+```
+
+## Skeleton Loading Pattern
+
+Components support a `loading` prop for skeleton states:
+
+```tsx
+interface MyComponentProps {
+  data?: string;
+  loading?: boolean;
+}
+
+function MyComponent({ data, loading }: MyComponentProps) {
+  if (loading) {
+    return <Skeleton className="h-10 w-full" />;
+  }
+  return <div>{data}</div>;
+}
+```
+
+### Example: AppButton
+
+```tsx
+import { Skeleton } from '@/components/ui/8bit/skeleton';
+import { Spinner } from '@/components/ui/8bit/spinner';
+import { Button } from '@/components/ui/8bit/button';
+
+interface AppButtonProps {
+  appName: string;
+  loading?: boolean;      // Shows skeleton
+  launching?: boolean;    // Shows spinner
+  onClick: () => void;
+}
+
+function AppButton({ appName, loading, launching, onClick }: AppButtonProps) {
+  if (loading) {
+    return <Skeleton className="h-16 w-full" />;
+  }
+
+  return (
+    <Button onClick={onClick} disabled={launching}>
+      {launching ? <Spinner className="size-4" /> : appName}
+    </Button>
+  );
+}
+```
+
+## Game-Style Stats Bars
+
+Use 8bitcn gaming bars for system stats:
+
+```tsx
+import HealthBar from '@/components/ui/8bit/health-bar';
+import ManaBar from '@/components/ui/8bit/mana-bar';
+import { Progress } from '@/components/ui/8bit/progress';
+
+// CPU as health (red) - inverted: 100 - usage = remaining "health"
+<HealthBar value={100 - cpuUsage} className="h-4" />
+
+// RAM as mana (blue) - inverted: shows free memory
+<ManaBar value={freeMemoryPercentage} className="h-4" />
+
+// Disk as progress (purple)
+<Progress value={diskUsagePercentage} className="h-4" progressBg="bg-purple-500" />
+```
+
+## Toast Notifications
+
+Toast notifications use sonner with 8bitcn styling:
+
+```tsx
+import { toast } from '@/components/ui/8bit/toast';
+
+// Show a toast
+toast('Game launched!');
+toast('Error: Failed to connect');
 ```
 
 ## Atari Theme
@@ -119,11 +232,29 @@ The UI uses a custom Atari-inspired color scheme with oklch colors.
 
 Theme variables are defined in `src/index.css` with both light and dark variants.
 
-## Responsive Design
+## Mobile-First Design
 
-### Breakpoints
+### Touch Optimizations
 
-Use Tailwind's responsive prefixes:
+```css
+/* In index.css */
+button, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+```
+
+### Large Touch Targets
+
+All interactive elements use minimum h-14 or h-16 for touch:
+
+```tsx
+<Button className="w-full h-16 touch-manipulation active:scale-95">
+  Launch Game
+</Button>
+```
+
+### Responsive Breakpoints
 
 ```tsx
 // Mobile-first: single column, then 2 columns on sm+
@@ -221,12 +352,12 @@ import { useNetdataStats } from '@/hooks/useNetdataStats';
 function Stats() {
   const { cpu, ram, disk, network, loading, error } = useNetdataStats(3000);
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <Skeleton className="h-20" />;
 
   return (
     <div>
-      <p>CPU: {cpu?.usage}%</p>
-      <p>RAM: {ram?.used} / {ram?.total} GB</p>
+      <CpuBar usage={cpu?.usage} />
+      <RamBar used={ram?.used} total={ram?.total} />
     </div>
   );
 }
@@ -262,6 +393,55 @@ Use the unified deploy script from the project root:
 
 This builds the web UI and deploys via Ansible.
 
+## Animations with react-spring
+
+Use react-spring for smooth, physics-based animations on modals and transitions.
+
+### ConfirmDialog Example
+
+```tsx
+import { useTransition, animated, config } from '@react-spring/web';
+
+function ConfirmDialog({ open, onConfirm, onCancel, title }) {
+  const transitions = useTransition(open, {
+    from: { opacity: 0, scale: 0.9, y: 20 },
+    enter: { opacity: 1, scale: 1, y: 0 },
+    leave: { opacity: 0, scale: 0.95, y: 10 },
+    config: config.stiff,
+  });
+
+  return transitions((style, show) =>
+    show && (
+      <animated.div
+        style={{
+          opacity: style.opacity,
+          transform: style.scale.to(s => `scale(${s}) translateY(${style.y.get()}px)`),
+        }}
+      >
+        {/* Dialog content */}
+      </animated.div>
+    )
+  );
+}
+```
+
+### Animation Configs
+
+Use appropriate spring configs for different interactions:
+
+```tsx
+import { config } from '@react-spring/web';
+
+config.stiff    // Quick, snappy (modals, confirmations)
+config.gentle   // Soft, slow (backdrops, fades)
+config.wobbly   // Playful bounce (success states)
+config.default  // Balanced (general use)
+```
+
+### Reusable Components
+
+- `ConfirmDialog` - Animated confirmation modal at `@/components/ui/ConfirmDialog`
+
 ## Adding New Features
 
 ### New Component
@@ -269,6 +449,7 @@ This builds the web UI and deploys via Ansible.
 1. Check if 8bitcn has the component: https://www.8bitcn.com/docs/components
 2. Install via registry: `npx shadcn@latest add @8bitcn/component-name`
 3. Import from `@/components/ui/8bit/component-name`
+4. Add `loading?: boolean` prop for skeleton support if needed
 
 ### New Page/Section
 
@@ -276,6 +457,7 @@ This builds the web UI and deploys via Ansible.
 2. Use 8bit components for consistent styling
 3. Add `retro` class for pixel font where appropriate
 4. Use responsive classes (`sm:`, `md:`) for mobile support
+5. Add skeleton loading states with `loading` prop
 
 ### New API Integration
 

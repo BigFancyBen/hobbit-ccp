@@ -1,19 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/8bit/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/8bit/card';
+import { Alert, AlertDescription } from '@/components/ui/8bit/alert';
 import { SettingsModal } from '@/components/SettingsModal';
+import { GameLauncher } from '@/components/GameLauncher';
+import { toast } from '@/components/ui/8bit/toast';
 
 function App() {
   const [status, setStatus] = useState({ mode: 'idle', moonlightRunning: false, xRunning: false });
   const [apps, setApps] = useState<string[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const API = '/api/control';
 
   useEffect(() => {
-    checkStatus();
-    fetchApps();
+    const init = async () => {
+      await Promise.all([checkStatus(), fetchApps()]);
+      setInitialLoading(false);
+    };
+    init();
     const interval = setInterval(checkStatus, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -48,12 +53,17 @@ function App() {
       const res = await fetch(`${API}/launch-moonlight?app=${encodeURIComponent(appName)}`, {
         method: 'POST'
       });
-      if (!res.ok) {
+      if (res.ok) {
+        toast(`${appName} launched!`);
+      } else {
         const data = await res.json();
-        setError(data.error || 'Failed to launch');
+        const errorMsg = data.error || 'Failed to launch';
+        setError(errorMsg);
+        toast(errorMsg);
       }
     } catch {
       setError('Failed to connect');
+      toast('Failed to connect');
     }
     setLoading(null);
     setTimeout(checkStatus, 2000);
@@ -63,8 +73,10 @@ function App() {
     setLoading('exit');
     try {
       await fetch(`${API}/exit-gaming`, { method: 'POST' });
+      toast('Gaming mode stopped');
     } catch {
       setError('Failed to exit');
+      toast('Failed to exit');
     }
     setLoading(null);
     setTimeout(checkStatus, 1000);
@@ -72,6 +84,7 @@ function App() {
 
   const handleReboot = async () => {
     setLoading('reboot');
+    toast('Rebooting system...');
     try {
       await fetch(`${API}/reboot`, { method: 'POST' });
     } catch {
@@ -91,54 +104,20 @@ function App() {
 
         {/* Error display */}
         {error && (
-          <div className="mb-4 p-3 bg-destructive text-white text-sm retro">
-            {error}
-          </div>
+          <Alert variant="destructive" className="mb-4">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
-        {/* Gaming Card */}
-        <Card className="mx-2">
-          <CardHeader>
-            <CardTitle className="text-xs sm:text-sm uppercase tracking-wide text-muted-foreground">
-              Gaming
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Status Badge */}
-            <div className={`inline-block px-3 py-1.5 text-xs sm:text-sm font-medium retro ${
-              status.mode === 'gaming'
-                ? 'bg-green-500 text-black'
-                : 'bg-secondary text-muted-foreground'
-            }`}>
-              {status.mode === 'gaming' ? 'Playing' : 'Idle'}
-            </div>
-
-            {/* App Grid or Exit Button */}
-            {status.mode === 'idle' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {apps.map(app => (
-                  <Button
-                    key={app}
-                    onClick={() => launchApp(app)}
-                    disabled={loading !== null}
-                    className={`w-full text-xs sm:text-sm ${loading === app ? 'animate-pulse' : ''}`}
-                  >
-                    {app}
-                  </Button>
-                ))}
-              </div>
-            ) : (
-              <Button
-                variant="destructive"
-                className="w-full text-xs sm:text-sm"
-                onClick={exitGaming}
-                disabled={loading !== null}
-              >
-                {loading === 'exit' ? 'Stopping...' : 'Exit Gaming Mode'}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        {/* Game Launcher */}
+        <GameLauncher
+          status={status}
+          apps={apps}
+          loading={loading}
+          initialLoading={initialLoading}
+          onLaunchApp={launchApp}
+          onExitGaming={exitGaming}
+        />
       </div>
     </div>
   );

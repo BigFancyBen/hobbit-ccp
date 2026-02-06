@@ -148,3 +148,20 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Mobile touch optimizations */
+button,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Faster transitions for perceived speed on LAN */
+.transition-transform {
+  transition-duration: 100ms;
+}
+
+/* Ensure dark mode color scheme */
+html {
+  color-scheme: dark;
+}

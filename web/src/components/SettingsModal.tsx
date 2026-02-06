@@ -1,12 +1,6 @@
-import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/8bit/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/8bit/tabs';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useTransition, animated, to } from '@react-spring/web';
 import { Button } from '@/components/ui/8bit/button';
 import { StatsTab } from './StatsTab';
 import { SystemTab } from './SystemTab';
@@ -30,38 +24,155 @@ function CogIcon() {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </svg>
+  );
+}
+
 interface SettingsModalProps {
   onReboot: () => void;
   loading: string | null;
 }
 
 export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
-  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<'stats' | 'system'>('stats');
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleClose = () => setIsOpen(false);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  // Modal transition - scales from top-right corner
+  const modalTransition = useTransition(isOpen, {
+    from: { opacity: 0, scale: 0.3 },
+    enter: { opacity: 1, scale: 1 },
+    leave: { opacity: 0, scale: 0.3 },
+    config: { tension: 320, friction: 22 },
+  });
+
+  const backdropTransition = useTransition(isOpen, {
+    from: { opacity: 0 },
+    enter: { opacity: 1 },
+    leave: { opacity: 0 },
+    config: { tension: 200, friction: 26 },
+  });
+
+  const modal = (
+    <>
+      {backdropTransition((style, show) =>
+        show && (
+          <animated.div
+            style={style}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            onClick={handleClose}
+          />
+        )
+      )}
+
+      {modalTransition((style, show) =>
+        show && (
+          <animated.div
+            style={{
+              opacity: style.opacity,
+              transform: style.scale.to(s => `scale(${s})`),
+              transformOrigin: 'top right',
+            }}
+            className="fixed top-4 right-4 z-50"
+          >
+            <div className="relative bg-card w-[calc(100vw-2rem)] max-w-sm max-h-[80vh] overflow-hidden border-y-6 border-foreground dark:border-ring flex flex-col">
+              {/* Pixel borders */}
+              <div
+                className="absolute inset-0 border-x-6 -mx-1.5 border-foreground dark:border-ring pointer-events-none"
+                aria-hidden="true"
+              />
+
+              {/* Content */}
+              <div className="p-4 flex flex-col min-h-0 flex-1">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-3 shrink-0">
+                  <h2 className="text-lg font-semibold retro">Settings</h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 touch-manipulation active:scale-95"
+                    onClick={handleClose}
+                  >
+                    <CloseIcon />
+                  </Button>
+                </div>
+
+                {/* Simple Tab Buttons */}
+                <div className="flex gap-2 mb-3 shrink-0">
+                  <button
+                    onClick={() => setTab('stats')}
+                    className={`flex-1 h-12 text-sm retro touch-manipulation transition-colors ${
+                      tab === 'stats'
+                        ? 'bg-accent text-foreground'
+                        : 'bg-secondary text-muted-foreground'
+                    }`}
+                  >
+                    Stats
+                  </button>
+                  <button
+                    onClick={() => setTab('system')}
+                    className={`flex-1 h-12 text-sm retro touch-manipulation transition-colors ${
+                      tab === 'system'
+                        ? 'bg-accent text-foreground'
+                        : 'bg-secondary text-muted-foreground'
+                    }`}
+                  >
+                    System
+                  </button>
+                </div>
+
+                {/* Tab Content - Fixed height to match Stats tab */}
+                <div className="h-80 overflow-y-auto overflow-x-hidden px-1">
+                  {tab === 'stats' && <StatsTab />}
+                  {tab === 'system' && <SystemTab onReboot={onReboot} loading={loading} />}
+                </div>
+              </div>
+            </div>
+          </animated.div>
+        )
+      )}
+    </>
+  );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <CogIcon />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-md h-auto max-h-[85vh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader className="pb-2">
-          <DialogTitle className="text-base sm:text-lg">Settings</DialogTitle>
-        </DialogHeader>
-        <Tabs defaultValue="stats" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="stats" className="text-xs sm:text-sm">Stats</TabsTrigger>
-            <TabsTrigger value="system" className="text-xs sm:text-sm">System</TabsTrigger>
-          </TabsList>
-          <TabsContent value="stats" className="mt-0">
-            <StatsTab />
-          </TabsContent>
-          <TabsContent value="system" className="mt-0">
-            <SystemTab onReboot={onReboot} loading={loading} />
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-12 w-12 touch-manipulation"
+        onClick={() => setIsOpen(true)}
+      >
+        <CogIcon />
+      </Button>
+      {createPortal(modal, document.body)}
+    </>
   );
 }
