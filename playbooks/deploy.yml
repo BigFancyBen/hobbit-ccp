@@ -18,6 +18,26 @@
         mode: '0440'
         validate: 'visudo -cf %s'
 
+    - name: Install Bluetooth packages
+      apt:
+        name: bluez
+        state: present
+        update_cache: no
+
+    - name: Add hobbit to bluetooth and input groups
+      user:
+        name: hobbit
+        groups: bluetooth,input
+        append: yes
+
+    - name: Allow hobbit to run bluetoothctl without password
+      lineinfile:
+        path: /etc/sudoers.d/hobbit-gaming
+        line: 'hobbit ALL=(ALL) NOPASSWD: /usr/bin/bluetoothctl'
+        create: yes
+        mode: '0440'
+        validate: 'visudo -cf %s'
+
     - name: Create hobbit directory
       file:
         path: "{{ hobbit_dir }}"

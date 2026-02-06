@@ -203,6 +203,15 @@ Commands requiring root access need sudoers entries. Add to `roles/webserver/tas
 | `/monitor-off` | POST | Turn off display |
 | `/shutdown` | POST | Shutdown system |
 | `/reboot` | POST | Reboot system |
+| `/bluetooth/status` | GET | Paired devices + connection status |
+| `/bluetooth/scan` | POST | Start/stop device discovery |
+| `/bluetooth/discovered` | GET | Devices found during scan |
+| `/bluetooth/pair` | POST | Pair with device |
+| `/bluetooth/connect` | POST | Connect to paired device |
+| `/bluetooth/disconnect` | POST | Disconnect device |
+| `/bluetooth/device/:mac` | DELETE | Remove paired device |
+
+See `docs/bluetooth.md` for full Bluetooth documentation.
 
 ## Debugging
 
