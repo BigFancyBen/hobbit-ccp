@@ -106,15 +106,7 @@ export function StatsTab() {
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-3">
               <MonitorIcon />
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm sm:text-base font-bold retro tracking-wider">HOBBIT</h3>
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                    LV.99
-                  </Badge>
-                </div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground retro">Mini PC</p>
-              </div>
+              <h3 className="text-sm sm:text-base font-bold retro tracking-wider">HOBBIT</h3>
             </div>
             {enabled && (
               <Button
