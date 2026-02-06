@@ -5,7 +5,7 @@ import { GameLauncher } from '@/components/GameLauncher';
 import { toast } from '@/components/ui/8bit/toast';
 
 function App() {
-  const [status, setStatus] = useState({ mode: 'idle', moonlightRunning: false, xRunning: false });
+  const [status, setStatus] = useState({ mode: 'idle', sunshineOnline: false });
   const [apps, setApps] = useState<string[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -19,8 +19,24 @@ function App() {
       setInitialLoading(false);
     };
     init();
-    const interval = setInterval(checkStatus, 3000);
-    return () => clearInterval(interval);
+
+    // Only poll when tab is visible
+    let interval: ReturnType<typeof setInterval> | null = setInterval(checkStatus, 5000);
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+      } else {
+        checkStatus(); // Immediate check on refocus
+        if (!interval) interval = setInterval(checkStatus, 5000);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   const checkStatus = async () => {
@@ -115,6 +131,7 @@ function App() {
           apps={apps}
           loading={loading}
           initialLoading={initialLoading}
+          offline={!status.sunshineOnline}
           onLaunchApp={launchApp}
           onExitGaming={exitGaming}
         />

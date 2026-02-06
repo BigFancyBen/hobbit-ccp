@@ -168,13 +168,53 @@ app.post('/reboot', (req, res) => {
   setTimeout(() => exec('sudo reboot'), 500);
 });
 
-// Status check
+// Lazy Sunshine reachability monitor - only polls when frontend is active
+let sunshineOnline = false;
+let sunshineInterval = null;
+let lastStatusRequest = 0;
+const STATUS_IDLE_TIMEOUT = 30000; // Stop checking after 30s of no requests
+
+function checkSunshine() {
+  exec(`nc -z -w 1 ${GAMING_PC} 47989`, { timeout: 2000 }, (err) => {
+    sunshineOnline = !err;
+  });
+}
+
+function startSunshineMonitor() {
+  if (sunshineInterval) return;
+  console.log('Sunshine monitor starting...');
+  checkSunshine(); // Immediate first check
+  sunshineInterval = setInterval(checkSunshine, 5000);
+}
+
+function stopSunshineMonitor() {
+  if (!sunshineInterval) return;
+  console.log('Sunshine monitor stopping (idle)...');
+  clearInterval(sunshineInterval);
+  sunshineInterval = null;
+}
+
+function touchStatus() {
+  lastStatusRequest = Date.now();
+  startSunshineMonitor();
+}
+
+// Check for idle timeout every 10 seconds
+setInterval(() => {
+  if (sunshineInterval && Date.now() - lastStatusRequest > STATUS_IDLE_TIMEOUT) {
+    stopSunshineMonitor();
+  }
+}, 10000);
+
+// Status check - uses cached Sunshine reachability
 app.get('/status', (req, res) => {
+  touchStatus();
   // Check for X server (reliable indicator of gaming mode)
-  exec('pgrep -x Xorg', (err) => {
+  exec('pgrep -x Xorg', (xorgErr) => {
     res.json({
-      gaming: !err,
-      mode: !err ? 'gaming' : 'idle'
+      gaming: !xorgErr,
+      mode: !xorgErr ? 'gaming' : 'idle',
+      sunshineOnline
     });
   });
 });

@@ -4,10 +4,11 @@ import { AppGrid } from './AppGrid';
 import { ExitButton } from './ExitButton';
 
 interface GameLauncherProps {
-  status: { mode: string; moonlightRunning: boolean; xRunning: boolean };
+  status: { mode: string; sunshineOnline: boolean };
   apps: string[];
   loading: string | null;
   initialLoading?: boolean;
+  offline?: boolean;
   onLaunchApp: (app: string) => void;
   onExitGaming: () => void;
 }
@@ -17,6 +18,7 @@ export function GameLauncher({
   apps,
   loading,
   initialLoading,
+  offline,
   onLaunchApp,
   onExitGaming
 }: GameLauncherProps) {
@@ -29,7 +31,7 @@ export function GameLauncher({
           <CardTitle className="text-xs sm:text-sm uppercase tracking-wide text-muted-foreground">
             Radiance
           </CardTitle>
-          <StatusBadge isGaming={isGaming} loading={initialLoading} />
+          <StatusBadge isGaming={isGaming} offline={offline} loading={initialLoading} />
         </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-2">
