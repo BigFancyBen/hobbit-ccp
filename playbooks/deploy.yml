@@ -4,6 +4,20 @@
   become: yes
 
   tasks:
+    - name: Install intel-gpu-tools for GPU monitoring
+      apt:
+        name: intel-gpu-tools
+        state: present
+        update_cache: no
+
+    - name: Allow hobbit to run intel_gpu_top without password
+      lineinfile:
+        path: /etc/sudoers.d/hobbit-gaming
+        line: 'hobbit ALL=(ALL) NOPASSWD: /usr/bin/intel_gpu_top'
+        create: yes
+        mode: '0440'
+        validate: 'visudo -cf %s'
+
     - name: Create hobbit directory
       file:
         path: "{{ hobbit_dir }}"

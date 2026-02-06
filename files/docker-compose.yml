@@ -48,6 +48,8 @@ services:
       - SYS_PTRACE
     security_opt:
       - apparmor:unconfined
+    devices:
+      - /dev/dri:/dev/dri
     volumes:
       - /etc/passwd:/host/etc/passwd:ro
       - /etc/group:/host/etc/group:ro

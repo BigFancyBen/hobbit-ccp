@@ -143,6 +143,156 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// GPU stats - uses intel_gpu_top for accurate utilization (requires intel-gpu-tools)
+let gpuStats = { usage_percent: 0, render: 0, video: 0, frequency_mhz: 0 };
+let gpuStatsProcess = null;
+
+function startGpuMonitor() {
+  if (gpuStatsProcess) return;
+
+  console.log('Starting GPU monitor...');
+  // Use full path and pipe through jq for compact JSON (one object per line)
+  gpuStatsProcess = spawn('sh', ['-c', 'sudo /usr/bin/intel_gpu_top -J -s 2000 2>/dev/null'], {
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+
+  let buffer = '';
+  let braceCount = 0;
+  let objectStart = -1;
+
+  gpuStatsProcess.stdout.on('data', (data) => {
+    const chunk = data.toString();
+    buffer += chunk;
+
+    // Parse complete JSON objects using brace counting
+    for (let i = 0; i < buffer.length; i++) {
+      const char = buffer[i];
+      if (char === '{') {
+        if (braceCount === 0) objectStart = i;
+        braceCount++;
+      } else if (char === '}') {
+        braceCount--;
+        if (braceCount === 0 && objectStart !== -1) {
+          const jsonStr = buffer.substring(objectStart, i + 1);
+          try {
+            const sample = JSON.parse(jsonStr);
+            const engines = sample.engines || {};
+            let render = 0, video = 0;
+
+            for (const key of Object.keys(engines)) {
+              const engine = engines[key];
+              const busy = engine && typeof engine.busy === 'number' ? engine.busy : 0;
+              if (key.includes('Render') || key.includes('3D')) {
+                render = Math.max(render, busy);
+              }
+              if (key.includes('Video')) {
+                video = Math.max(video, busy);
+              }
+            }
+
+            gpuStats = {
+              usage_percent: Math.round(render),
+              render: Math.round(render),
+              video: Math.round(video),
+              frequency_mhz: sample.frequency?.actual || 0
+            };
+          } catch (e) {
+            console.error('GPU JSON parse error:', e.message);
+          }
+          objectStart = -1;
+        }
+      }
+    }
+
+    // Keep only unprocessed part of buffer
+    if (objectStart === -1) {
+      buffer = '';
+      braceCount = 0;
+    } else if (objectStart > 0) {
+      buffer = buffer.substring(objectStart);
+      objectStart = 0;
+    }
+  });
+
+  gpuStatsProcess.stderr.on('data', (data) => {
+    console.error('GPU monitor stderr:', data.toString().trim());
+  });
+
+  gpuStatsProcess.on('close', (code) => {
+    console.log('GPU monitor exited with code', code);
+    gpuStatsProcess = null;
+    setTimeout(startGpuMonitor, 5000);
+  });
+
+  gpuStatsProcess.on('error', (err) => {
+    console.error('GPU monitor error:', err.message);
+    gpuStatsProcess = null;
+  });
+}
+
+startGpuMonitor();
+
+app.get('/gpu-stats', (req, res) => {
+  res.json(gpuStats);
+});
+
+// Network stats - reads /proc/net/dev and calculates rate
+const fs = require('fs');
+let lastNetStats = null;
+let lastNetTime = 0;
+let netRate = { received_kbps: 0, sent_kbps: 0 };
+
+function parseNetDev() {
+  try {
+    const data = fs.readFileSync('/proc/net/dev', 'utf8');
+    const lines = data.split('\n');
+    let totalRx = 0, totalTx = 0;
+
+    for (const line of lines) {
+      // Skip header lines and loopback
+      if (line.includes('|') || line.includes('lo:')) continue;
+      const match = line.match(/^\s*(\w+):\s*(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/);
+      if (match) {
+        totalRx += parseInt(match[2], 10);
+        totalTx += parseInt(match[3], 10);
+      }
+    }
+    return { rx: totalRx, tx: totalTx };
+  } catch (e) {
+    return null;
+  }
+}
+
+function updateNetRate() {
+  const now = Date.now();
+  const current = parseNetDev();
+  if (!current) return;
+
+  if (lastNetStats && lastNetTime) {
+    const elapsed = (now - lastNetTime) / 1000; // seconds
+    if (elapsed > 0) {
+      const rxDiff = current.rx - lastNetStats.rx;
+      const txDiff = current.tx - lastNetStats.tx;
+      // Convert bytes/sec to KB/s
+      netRate = {
+        received_kbps: Math.round((rxDiff / elapsed) / 1024),
+        sent_kbps: Math.round((txDiff / elapsed) / 1024)
+      };
+    }
+  }
+
+  lastNetStats = current;
+  lastNetTime = now;
+}
+
+// Update network rate every second
+setInterval(updateNetRate, 1000);
+updateNetRate();
+
+app.get('/net-stats', (req, res) => {
+  res.json(netRate);
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Hobbit Bridge running on port ${PORT}`);

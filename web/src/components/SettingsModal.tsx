@@ -149,8 +149,8 @@ export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
                   </button>
                 </div>
 
-                {/* Tab Content - Fixed height to match Stats tab */}
-                <div className="h-80 overflow-y-auto overflow-x-hidden px-1">
+                {/* Tab Content */}
+                <div className="h-104 overflow-y-auto overflow-x-hidden px-1">
                   {tab === 'stats' && <StatsTab />}
                   {tab === 'system' && <SystemTab onReboot={onReboot} loading={loading} />}
                 </div>

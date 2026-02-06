@@ -1,4 +1,9 @@
 ---
+- name: Install intel-gpu-tools for GPU monitoring
+  apt:
+    name: intel-gpu-tools
+    state: present
+
 - name: Create hobbit directories
   file:
     path: "{{ hobbit_dir }}/{{ item }}"
@@ -54,7 +59,7 @@
 - name: Allow hobbit to run gaming commands without password
   copy:
     content: |
-      hobbit ALL=(ALL) NOPASSWD: /usr/bin/xinit, /usr/bin/pkill, /usr/bin/rm, /usr/sbin/vbetool
+      hobbit ALL=(ALL) NOPASSWD: /usr/bin/xinit, /usr/bin/pkill, /usr/bin/rm, /usr/sbin/vbetool, /usr/bin/intel_gpu_top
     dest: /etc/sudoers.d/hobbit-gaming
     mode: '0440'
     validate: 'visudo -cf %s'

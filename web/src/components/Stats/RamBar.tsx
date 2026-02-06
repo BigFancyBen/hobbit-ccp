@@ -1,4 +1,4 @@
-import ManaBar from '@/components/ui/8bit/mana-bar';
+import { Progress } from '@/components/ui/8bit/progress';
 import { Badge } from '@/components/ui/8bit/badge';
 import { Skeleton } from '@/components/ui/8bit/skeleton';
 
@@ -23,18 +23,17 @@ export function RamBar({ used, total, loading }: RamBarProps) {
 
   const usedVal = used ?? 0;
   const totalVal = total ?? 1;
-  // Mana bar shows "mana remaining" so we show free RAM percentage
-  const freePercentage = ((totalVal - usedVal) / totalVal) * 100;
+  const usedPercentage = (usedVal / totalVal) * 100;
 
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center">
         <h4 className="text-xs sm:text-sm font-semibold retro">Memory</h4>
-        <Badge variant="secondary" className="text-xs">
+        <Badge variant={usedPercentage > 80 ? 'destructive' : 'secondary'} className="text-xs">
           {usedVal.toFixed(1)} / {totalVal.toFixed(1)} GB
         </Badge>
       </div>
-      <ManaBar value={freePercentage} className="h-4" />
+      <Progress value={usedPercentage} className="h-4" progressBg="bg-green-500" />
     </div>
   );
 }
