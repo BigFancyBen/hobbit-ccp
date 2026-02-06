@@ -183,6 +183,32 @@ location /netdata/ {
 }
 ```
 
+## Bridge API Endpoints
+
+The bridge service (`/api/control/`) provides these endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/status` | GET | Gaming mode status (idle/gaming) |
+| `/apps` | GET | List available Sunshine apps (cached) |
+| `/apps/refresh` | POST | Force refresh of app list cache |
+| `/launch-moonlight?app=<name>` | POST | Launch Moonlight streaming an app |
+| `/exit-gaming` | POST | Stop gaming mode, turn off monitor |
+| `/monitor-on` | POST | Turn monitor on |
+| `/monitor-off` | POST | Turn monitor off |
+| `/reboot` | POST | Reboot the mini PC |
+| `/shutdown` | POST | Shutdown the mini PC |
+| `/health` | GET | Health check |
+
+### App List Caching
+
+The `/apps` endpoint returns a cached list of apps from Sunshine. The cache:
+- Refreshes on bridge startup
+- Auto-refreshes every 5 minutes
+- Can be manually refreshed via `/apps/refresh`
+
+This avoids slow API responses since `moonlight list` requires spawning a virtual X display (xvfb).
+
 ## Custom Hooks
 
 ### useNetdataStats

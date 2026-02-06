@@ -9,6 +9,34 @@ app.use(express.json());
 // Gaming PC with Sunshine server
 const GAMING_PC = process.env.GAMING_PC_HOST || '192.168.0.69';
 
+// Cached app list - refreshed periodically
+let cachedApps = ['Desktop'];
+let lastAppRefresh = 0;
+const APP_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function refreshAppList() {
+  const env = { ...process.env, HOME: '/home/hobbit', XDG_RUNTIME_DIR: '/run/user/1000' };
+  exec(`xvfb-run -a moonlight list "${GAMING_PC}"`, { timeout: 15000, env }, (err, stdout, stderr) => {
+    if (err) {
+      console.error('Failed to refresh app list:', err.message);
+      return;
+    }
+    // Filter out warning messages and empty lines, keep only app names
+    const apps = stdout.trim().split('\n')
+      .map(a => a.trim())
+      .filter(a => a && !a.includes('XDG_RUNTIME_DIR') && !a.includes('Qt') && !a.startsWith('00:'));
+    if (apps.length > 0) {
+      cachedApps = apps;
+      lastAppRefresh = Date.now();
+      console.log('App list refreshed:', cachedApps);
+    }
+  });
+}
+
+// Refresh app list on startup and every 5 minutes
+refreshAppList();
+setInterval(refreshAppList, APP_CACHE_TTL);
+
 // Launch Moonlight streaming a specific app
 // POST /launch-moonlight?app=Desktop  (use actual app name from Sunshine)
 app.post('/launch-moonlight', (req, res) => {
@@ -38,18 +66,16 @@ sleep 1 && su hobbit -c "DISPLAY=:0 moonlight stream ${GAMING_PC} \\"${appName}\
   });
 });
 
-// List available apps from Sunshine on gaming PC
+// List available apps from Sunshine on gaming PC (returns cached list)
 // These names can be passed directly to /launch-moonlight?app=
 app.get('/apps', (req, res) => {
-  exec(`moonlight list "${GAMING_PC}"`, { timeout: 10000 }, (err, stdout, stderr) => {
-    if (err) {
-      console.error('Failed to list apps:', err.message, stderr);
-      // Return default apps if can't connect
-      return res.json({ apps: ['Desktop'], error: 'Could not connect to gaming PC' });
-    }
-    const apps = stdout.trim().split('\n').filter(a => a.trim());
-    res.json({ apps: apps.length > 0 ? apps : ['Desktop'] });
-  });
+  res.json({ apps: cachedApps });
+});
+
+// Force refresh of app list
+app.post('/apps/refresh', (req, res) => {
+  refreshAppList();
+  res.json({ status: 'refreshing' });
 });
 
 // Kill Moonlight and X, then turn off HDMI output at kernel level

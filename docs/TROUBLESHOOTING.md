@@ -163,6 +163,29 @@ Ensure the i2c-dev module is loaded:
 sudo modprobe i2c-dev
 ```
 
+### App list shows only "Desktop"
+
+The bridge fetches available apps from Sunshine on startup and caches them. If only "Desktop" appears:
+
+1. **Gaming PC not reachable**: Check network connectivity to 192.168.0.69
+2. **Moonlight not paired**: See [MOONLIGHT-PAIRING.md](MOONLIGHT-PAIRING.md) for pairing instructions
+3. **Bridge just started**: The app list refreshes every 5 minutes. Force a refresh:
+   ```bash
+   curl -X POST http://localhost:3001/apps/refresh
+   ```
+4. **Check bridge logs** for errors:
+   ```bash
+   journalctl -u hobbit-bridge -n 20
+   ```
+
+### Qt platform errors when listing apps
+
+The Moonlight AppImage is a Qt app that requires a display. The bridge uses `xvfb-run` to provide a virtual display for headless operation.
+
+If you see errors like "Could not find the Qt platform plugin":
+- Ensure `xvfb` package is installed: `sudo apt install xvfb`
+- The bridge sets `XDG_RUNTIME_DIR` and `HOME` environment variables automatically
+
 ## Ansible Issues
 
 ### "roles not found"

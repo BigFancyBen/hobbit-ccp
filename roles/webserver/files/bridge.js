@@ -6,22 +6,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Your gaming PC hostname (from Moonlight pairing)
-// Change this to match your Sunshine host
+// Gaming PC with Sunshine server
 const GAMING_PC = process.env.GAMING_PC_HOST || '192.168.0.69';
 
-// Available apps on your gaming PC
-const APPS = {
-  'steam': 'Steam Big Picture',
-  'desktop': 'Desktop',
-  // Add more as needed from `moonlight list 192.168.0.69`
-};
-
 // Launch Moonlight streaming a specific app
-// POST /launch-moonlight?app=steam
+// POST /launch-moonlight?app=Desktop  (use actual app name from Sunshine)
 app.post('/launch-moonlight', (req, res) => {
-  const appKey = req.query.app || 'steam';
-  const appName = APPS[appKey] || APPS['steam'];
+  const appName = req.query.app || 'Desktop';
 
   // Check if already running
   exec('pgrep Xorg', (err) => {
@@ -44,12 +35,16 @@ app.post('/launch-moonlight', (req, res) => {
   });
 });
 
-// List available apps from gaming PC
+// List available apps from Sunshine on gaming PC
+// These names can be passed directly to /launch-moonlight?app=
 app.get('/apps', (req, res) => {
-  exec(`flatpak run com.moonlight_stream.Moonlight list "${GAMING_PC}"`, (err, stdout) => {
-    if (err) return res.status(500).json({ error: 'Failed to list apps' });
-    const apps = stdout.trim().split('\n').filter(a => a);
-    res.json({ apps });
+  exec(`flatpak run com.moonlight_stream.Moonlight list "${GAMING_PC}"`, { timeout: 10000 }, (err, stdout, stderr) => {
+    if (err) {
+      console.error('Failed to list apps:', err.message, stderr);
+      return res.json({ apps: ['Desktop'], error: 'Could not connect to gaming PC' });
+    }
+    const apps = stdout.trim().split('\n').filter(a => a.trim());
+    res.json({ apps: apps.length > 0 ? apps : ['Desktop'] });
   });
 });
 

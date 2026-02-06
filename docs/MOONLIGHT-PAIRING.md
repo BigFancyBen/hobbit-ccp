@@ -54,10 +54,10 @@ sudo pkill Xorg
 
 ## Verifying the Pairing
 
-Test that Moonlight can see apps from your gaming PC:
+Test that Moonlight can see apps from your gaming PC. Since Moonlight is a Qt app that requires a display, use `xvfb-run` for headless operation:
 
 ```bash
-moonlight list 192.168.0.69
+xvfb-run -a moonlight list 192.168.0.69
 ```
 
 Should output something like:
@@ -65,6 +65,8 @@ Should output something like:
 Steam Big Picture
 Desktop
 ```
+
+**Note**: Running `moonlight list` without xvfb will fail with Qt platform errors because the AppImage only includes the `xcb` (X11) plugin.
 
 ## Troubleshooting
 

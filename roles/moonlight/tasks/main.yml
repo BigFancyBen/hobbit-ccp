@@ -8,6 +8,7 @@
       - libfuse2t64
       - openbox
       - vbetool
+      - xvfb
     state: present
 
 - name: Download Moonlight AppImage
