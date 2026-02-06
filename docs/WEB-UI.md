@@ -25,14 +25,6 @@ web/
 │   │   │   ├── AppButton.tsx   # Game launch button with skeleton
 │   │   │   ├── AppGrid.tsx     # Grid with skeleton loading
 │   │   │   └── ExitButton.tsx  # Exit gaming button
-│   │   ├── Stats/              # System stats components
-│   │   │   ├── index.tsx       # Exports all stats components
-│   │   │   ├── CpuBar.tsx      # HealthBar wrapper for CPU
-│   │   │   ├── GpuBar.tsx      # Progress bar for GPU
-│   │   │   ├── RamBar.tsx      # ManaBar wrapper for RAM
-│   │   │   ├── DiskBar.tsx     # Progress bar for disk
-│   │   │   └── NetworkBadges.tsx # Network up/down badges
-│   │   ├── BluetoothSection.tsx # Bluetooth controller management
 │   │   ├── ui/
 │   │   │   ├── 8bit/           # 8bitcn components (from registry)
 │   │   │   │   ├── button.tsx
@@ -51,10 +43,11 @@ web/
 │   │   │   │   ├── tooltip.tsx
 │   │   │   │   └── styles/
 │   │   │   │       └── retro.css
+│   │   │   ├── ConfirmDialog.tsx # Animated confirmation modal
 │   │   │   └── *.tsx           # Base shadcn components
-│   │   ├── SettingsModal.tsx   # Settings dialog with tabs
-│   │   ├── StatsTab.tsx        # System stats (bridge API)
-│   │   └── SystemTab.tsx       # Bluetooth + reboot controls
+│   │   ├── SettingsModal.tsx   # Settings dialog (Stats + System tabs)
+│   │   ├── StatsTab.tsx        # System stats (CPU, GPU, RAM, disk, network)
+│   │   └── SystemTab.tsx       # Reboot + Bluetooth (RPG "save slots" UI)
 │   ├── hooks/
 │   │   ├── useSystemStats.ts  # Custom hook for bridge stats API
 │   │   └── useBluetooth.ts     # Custom hook for Bluetooth management
@@ -345,14 +338,15 @@ Fetches system metrics from the bridge API:
 import { useSystemStats } from '@/hooks/useSystemStats';
 
 function Stats() {
-  const { cpu, ram, disk, network, loading, error } = useSystemStats(3000);
+  const { cpu, gpu, ram, disk, network, loading, error } = useSystemStats(3000);
 
   if (loading) return <Skeleton className="h-20" />;
 
   return (
     <div>
-      <CpuBar usage={cpu?.usage} />
-      <RamBar used={ram?.used} total={ram?.total} />
+      <StatBar label="CPU" value={cpu?.usage ?? 0} />
+      <StatBar label="GPU" value={gpu?.usage ?? 0} />
+      <StatBar label="RAM" value={ram ? (ram.used / ram.total) * 100 : 0} />
     </div>
   );
 }

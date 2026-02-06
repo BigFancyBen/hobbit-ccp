@@ -161,55 +161,22 @@ const myData: MyEndpointResponse | null = myRes.ok ? await myRes.json() : null;
 myValue: myData?.value ?? null,
 ```
 
-### Step 4: Create display component
+### Step 4: Add to StatsTab
+
+Stats are rendered directly in `web/src/components/StatsTab.tsx` using the `StatBar` component. Add your new stat there:
 
 ```typescript
-// web/src/components/Stats/MyBar.tsx
-import { Progress } from '@/components/ui/8bit/progress';
-import { Badge } from '@/components/ui/8bit/badge';
-import { Skeleton } from '@/components/ui/8bit/skeleton';
+// In StatsTab.tsx, add to the useSystemStats destructure:
+const { cpu, gpu, ram, disk, network, myValue, loading, error } = useSystemStats(enabled ? 3000 : null);
 
-interface MyBarProps {
-  value?: number;
-  loading?: boolean;
-}
-
-export function MyBar({ value, loading }: MyBarProps) {
-  if (loading) {
-    return (
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-4 w-full" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center">
-        <h4 className="text-xs sm:text-sm font-semibold retro">My Metric</h4>
-        <Badge variant="secondary" className="text-xs">
-          {value?.toFixed(1)} units
-        </Badge>
-      </div>
-      <Progress value={value ?? 0} className="h-4" progressBg="bg-blue-500" />
-    </div>
-  );
-}
-```
-
-### Step 5: Export and use component
-
-Add to `web/src/components/Stats/index.tsx`:
-```typescript
-export { MyBar } from './MyBar';
-```
-
-Add to `web/src/components/StatsTab.tsx`:
-```typescript
-import { MyBar } from '@/components/Stats';
-// ...
-<MyBar value={myValue} loading={loading} />
+// Add a new StatBar in the render:
+<StatBar
+  label="MY METRIC"
+  value={myValue ?? 0}
+  detail={`${(myValue ?? 0).toFixed(1)} units`}
+  color="bg-blue-500"
+  loading={showLoading}
+/>
 ```
 
 ### Step 6: Deploy
@@ -238,9 +205,7 @@ ssh hobbit "sudo /path/to/command args"
 - [ ] Sudoers entry added if using sudo
 - [ ] TypeScript interface defined in hook
 - [ ] Fetch call added to hook
-- [ ] Display component created with loading state
-- [ ] Component exported from index
-- [ ] Component added to StatsTab
+- [ ] StatBar added to StatsTab.tsx
 - [ ] Deployed and tested
 
 ## Common Data Sources

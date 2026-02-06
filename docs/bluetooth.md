@@ -77,9 +77,8 @@ The Bluetooth controller management UI is in **Settings > System** tab.
 
 | File | Description |
 |------|-------------|
-| `web/src/components/BluetoothSection.tsx` | Main UI component |
+| `web/src/components/SystemTab.tsx` | Bluetooth UI (RPG "save slots" style) |
 | `web/src/hooks/useBluetooth.ts` | Data fetching hook |
-| `web/src/components/SystemTab.tsx` | Parent component |
 
 ## Bridge API
 
@@ -369,8 +368,7 @@ useEffect(() => {
 |------|---------|
 | `files/bridge.js` | API endpoints |
 | `web/src/hooks/useBluetooth.ts` | React data hook |
-| `web/src/components/BluetoothSection.tsx` | UI component |
-| `web/src/components/SystemTab.tsx` | Parent tab component |
+| `web/src/components/SystemTab.tsx` | Bluetooth UI (RPG "save slots" style) |
 | `playbooks/deploy.yml` | Ansible deployment config |
 | `docs/bluetooth.md` | This documentation |
 | `.claude/skills/bluetooth.md` | Claude skill reference |

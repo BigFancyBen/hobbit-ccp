@@ -117,6 +117,5 @@ ssh hobbit "journalctl -u hobbit-bridge -f"
 |------|---------|
 | `files/bridge.js` | Bluetooth API endpoints |
 | `web/src/hooks/useBluetooth.ts` | React hook for Bluetooth state |
-| `web/src/components/BluetoothSection.tsx` | UI component |
-| `web/src/components/SystemTab.tsx` | Contains BluetoothSection |
+| `web/src/components/SystemTab.tsx` | Bluetooth UI (RPG "save slots" style) |
 | `playbooks/deploy.yml` | Group membership + sudoers |
