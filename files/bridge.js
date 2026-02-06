@@ -37,6 +37,29 @@ function refreshAppList() {
 refreshAppList();
 setInterval(refreshAppList, APP_CACHE_TTL);
 
+// Ensure HDMI is off on startup (default idle state)
+exec('sudo /usr/local/bin/hdmi-control.sh off', (err) => {
+  if (err) console.error('Failed to turn off HDMI on startup:', err.message);
+  else console.log('HDMI turned off (idle state)');
+});
+
+// Cleanup when gaming session ends
+function cleanupGamingSession() {
+  console.log('Gaming session ended, cleaning up...');
+  exec('sudo /usr/local/bin/hdmi-control.sh off');
+  // Disconnect all Bluetooth devices
+  exec('bluetoothctl devices Paired', (btErr, stdout) => {
+    if (!btErr && stdout.trim()) {
+      for (const line of stdout.trim().split('\n')) {
+        const match = line.match(/Device\s+([A-F0-9:]+)/i);
+        if (match) {
+          exec(`bluetoothctl disconnect ${match[1]}`);
+        }
+      }
+    }
+  });
+}
+
 // Launch Moonlight streaming a specific app
 // POST /launch-moonlight?app=Desktop  (use actual app name from Sunshine)
 app.post('/launch-moonlight', (req, res) => {
@@ -61,6 +84,11 @@ sleep 1 && su hobbit -c "DISPLAY=:0 moonlight stream ${GAMING_PC} \\"${appName}\
       });
       child.unref();
 
+      // Cleanup when the gaming session exits on its own
+      child.on('close', () => {
+        cleanupGamingSession();
+      });
+
       res.json({ status: 'launching', app: appName });
     });
   });
@@ -78,13 +106,10 @@ app.post('/apps/refresh', (req, res) => {
   res.json({ status: 'refreshing' });
 });
 
-// Kill Moonlight and X, then turn off HDMI output at kernel level
+// Kill Moonlight and X, then cleanup
 app.post('/exit-gaming', (req, res) => {
   exec('sudo pkill -9 Xorg; sudo pkill -9 xinit; sudo pkill -9 moonlight', (err) => {
-    // Force HDMI output off via DRM debugfs
-    setTimeout(() => {
-      exec('sudo /usr/local/bin/hdmi-control.sh off');
-    }, 500);
+    setTimeout(cleanupGamingSession, 500);
     res.json({ status: 'stopped' });
   });
 });
