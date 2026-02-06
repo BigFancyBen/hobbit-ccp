@@ -35,7 +35,6 @@ If you need to run steps individually:
 After deployment, check:
 - Bridge API: http://192.168.0.67/api/control/health
 - Web UI: http://hobbit.local
-- Netdata: http://192.168.0.67:19999
 
 ## Key Files Deployed
 

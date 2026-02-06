@@ -109,6 +109,3 @@ export function useSystemStats(refreshInterval: number | null = 3000): Stats {
 
   return stats;
 }
-
-// Alias for backwards compatibility
-export const useNetdataStats = useSystemStats;

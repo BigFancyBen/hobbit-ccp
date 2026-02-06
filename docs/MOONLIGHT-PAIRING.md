@@ -122,9 +122,10 @@ The bridge service launches Moonlight with these settings:
 - **Resolution**: 1920x1080 (matches monitor)
 - **FPS**: 60
 - **Display mode**: Fullscreen via openbox window manager
-- **Monitor control**: Auto-off when exiting gaming mode (vbetool)
+- **Monitor control**: Auto-off when exiting gaming mode (DPMS/HDMI)
 
 Components used:
 - `openbox` - Window manager for proper fullscreen handling
 - `xrandr` - Sets display resolution to 1080p
-- `vbetool` - Controls monitor power without X running
+- `hdmi-control.sh` - Controls HDMI output power
+- DPMS via `xset` when X is running

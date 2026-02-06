@@ -7,7 +7,7 @@
       - xinit
       - libfuse2t64
       - openbox
-      - vbetool
+      - ddcutil
       - xvfb
     state: present
 

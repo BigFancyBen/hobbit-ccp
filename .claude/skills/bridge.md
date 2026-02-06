@@ -17,7 +17,6 @@ Use the bridge for:
 - Anything Docker containers can't access
 
 Do NOT use for:
-- Data that Netdata already provides (CPU, RAM, basic disk)
 - Static configuration
 - Operations that work fine in containers
 
@@ -146,7 +145,7 @@ If your endpoint requires sudo, add to `playbooks/deploy.yml`:
 
 ### Step 3: Wire to web UI
 
-In `web/src/hooks/useNetdataStats.ts` (or create new hook):
+In `web/src/hooks/useSystemStats.ts` (or create a new hook):
 
 ```typescript
 // Add interface for response

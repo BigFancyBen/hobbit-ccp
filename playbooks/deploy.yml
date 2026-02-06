@@ -4,9 +4,11 @@
   become: yes
 
   tasks:
-    - name: Install intel-gpu-tools for GPU monitoring
+    - name: Install intel-gpu-tools and ddcutil
       apt:
-        name: intel-gpu-tools
+        name:
+          - intel-gpu-tools
+          - ddcutil
         state: present
         update_cache: no
 
@@ -80,6 +82,12 @@
         src: ../files/zigbee2mqtt.yaml.j2
         dest: "{{ hobbit_dir }}/zigbee2mqtt/configuration.yaml"
       notify: Restart docker services
+
+    - name: Copy HDMI control script
+      copy:
+        src: ../files/hdmi-control.sh
+        dest: /usr/local/bin/hdmi-control.sh
+        mode: '0755'
 
     - name: Copy bridge.js
       copy:

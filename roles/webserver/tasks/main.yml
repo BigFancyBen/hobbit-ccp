@@ -16,7 +16,7 @@
 
 - name: Copy bridge.js
   copy:
-    src: bridge.js
+    src: "{{ playbook_dir }}/../files/bridge.js"
     dest: "{{ hobbit_dir }}/bridge/bridge.js"
     owner: hobbit
     group: hobbit
@@ -25,7 +25,7 @@
 
 - name: Copy package.json
   copy:
-    src: package.json
+    src: "{{ playbook_dir }}/../files/package.json"
     dest: "{{ hobbit_dir }}/bridge/package.json"
     owner: hobbit
     group: hobbit
@@ -41,7 +41,7 @@
 
 - name: Copy bridge service file
   copy:
-    src: hobbit-bridge.service
+    src: "{{ playbook_dir }}/../files/hobbit-bridge.service"
     dest: /etc/systemd/system/hobbit-bridge.service
   notify:
     - Reload systemd
@@ -59,7 +59,7 @@
 - name: Allow hobbit to run gaming commands without password
   copy:
     content: |
-      hobbit ALL=(ALL) NOPASSWD: /usr/bin/xinit, /usr/bin/pkill, /usr/bin/rm, /usr/sbin/vbetool, /usr/bin/intel_gpu_top
+      hobbit ALL=(ALL) NOPASSWD: /usr/bin/xinit, /usr/bin/pkill, /usr/bin/rm, /usr/local/bin/hdmi-control.sh, /usr/bin/intel_gpu_top, /usr/bin/ddcutil
     dest: /etc/sudoers.d/hobbit-gaming
     mode: '0440'
     validate: 'visudo -cf %s'

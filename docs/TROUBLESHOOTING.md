@@ -128,39 +128,21 @@ The openbox window manager handles fullscreen. If stream is cropped:
 
 ### Monitor stays blank after starting gaming
 
-The monitor is controlled via DDC/CI (ddcutil). To manually turn it on:
-```bash
-sudo ddcutil setvcp d6 1
-```
-
-Or use the control script:
+To manually turn the monitor on:
 ```bash
 sudo /usr/local/bin/hdmi-control.sh on
+```
+
+When X is running, DPMS is also available:
+```bash
+DISPLAY=:0 xset dpms force on
 ```
 
 ### Monitor won't turn off in idle mode
 
 The monitor should turn off automatically when exiting gaming mode. To manually turn it off:
 ```bash
-sudo ddcutil setvcp d6 5
-```
-
-Or use the control script:
-```bash
 sudo /usr/local/bin/hdmi-control.sh off
-```
-
-### Monitor control not working
-
-If ddcutil fails, check DDC/CI support:
-```bash
-sudo ddcutil detect
-sudo ddcutil getvcp d6
-```
-
-Ensure the i2c-dev module is loaded:
-```bash
-sudo modprobe i2c-dev
 ```
 
 ### App list shows only "Desktop"
@@ -225,7 +207,6 @@ sudo ufw status
 | 1883 | MQTT | Mosquitto broker |
 | 3001 | Bridge API | Moonlight/monitor control |
 | 5353 | mDNS | avahi-daemon |
-| 19999 | Netdata | System monitoring |
 
 ### Android shows "Connected, no internet"
 

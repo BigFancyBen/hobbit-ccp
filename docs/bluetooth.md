@@ -367,7 +367,7 @@ useEffect(() => {
 
 | File | Purpose |
 |------|---------|
-| `files/bridge.js` | API endpoints (lines 296-450) |
+| `files/bridge.js` | API endpoints |
 | `web/src/hooks/useBluetooth.ts` | React data hook |
 | `web/src/components/BluetoothSection.tsx` | UI component |
 | `web/src/components/SystemTab.tsx` | Parent tab component |

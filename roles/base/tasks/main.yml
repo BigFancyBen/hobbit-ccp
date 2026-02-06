@@ -43,7 +43,6 @@
     - "3001"  # Bridge API
     - "5353"  # mDNS
     - "1883"  # MQTT
-    - "19999" # Netdata monitoring
 
 - name: Allow Docker network to host
   ufw:

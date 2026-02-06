@@ -31,7 +31,7 @@ systemctl status hobbit-backup.timer # Backup timer
 ```bash
 journalctl -u hobbit-bridge -f       # Bridge service
 docker compose logs -f               # All containers
-docker compose logs -f webserver     # Specific container
+docker compose logs -f webserver     # Nginx container
 journalctl -f                        # System logs
 ```
 
@@ -42,7 +42,6 @@ cd /home/hobbit/hobbit
 docker compose ps                    # List containers
 docker compose up -d                 # Start containers
 docker compose restart               # Restart all
-docker compose logs -f netdata       # Netdata logs
 ```
 
 ## Gaming Mode Processes

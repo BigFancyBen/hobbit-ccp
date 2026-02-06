@@ -28,9 +28,11 @@ web/
 │   │   ├── Stats/              # System stats components
 │   │   │   ├── index.tsx       # Exports all stats components
 │   │   │   ├── CpuBar.tsx      # HealthBar wrapper for CPU
+│   │   │   ├── GpuBar.tsx      # Progress bar for GPU
 │   │   │   ├── RamBar.tsx      # ManaBar wrapper for RAM
 │   │   │   ├── DiskBar.tsx     # Progress bar for disk
 │   │   │   └── NetworkBadges.tsx # Network up/down badges
+│   │   ├── BluetoothSection.tsx # Bluetooth controller management
 │   │   ├── ui/
 │   │   │   ├── 8bit/           # 8bitcn components (from registry)
 │   │   │   │   ├── button.tsx
@@ -46,15 +48,18 @@ web/
 │   │   │   │   ├── mana-bar.tsx
 │   │   │   │   ├── empty.tsx
 │   │   │   │   ├── toast.tsx
+│   │   │   │   ├── tooltip.tsx
 │   │   │   │   └── styles/
 │   │   │   │       └── retro.css
 │   │   │   └── *.tsx           # Base shadcn components
 │   │   ├── SettingsModal.tsx   # Settings dialog with tabs
-│   │   ├── StatsTab.tsx        # Netdata system stats
-│   │   └── SystemTab.tsx       # Reboot controls
+│   │   ├── StatsTab.tsx        # System stats (bridge API)
+│   │   └── SystemTab.tsx       # Bluetooth + reboot controls
 │   ├── hooks/
-│   │   └── useNetdataStats.ts  # Custom hook for Netdata API
+│   │   ├── useSystemStats.ts  # Custom hook for bridge stats API
+│   │   └── useBluetooth.ts     # Custom hook for Bluetooth management
 │   ├── lib/
+│   │   ├── cache.ts            # Module-level cache for persistent data
 │   │   └── utils.ts            # shadcn utility functions
 │   ├── App.tsx                 # Main application
 │   ├── main.tsx                # Entry point with Toaster
@@ -288,11 +293,6 @@ server: {
     '/api': {
       target: 'http://192.168.0.67',
       changeOrigin: true
-    },
-    '/netdata': {
-      target: 'http://192.168.0.67:19999',
-      changeOrigin: true,
-      rewrite: (path) => path.replace(/^\/netdata/, '/api/v1')
     }
   }
 }
@@ -307,11 +307,6 @@ In production, nginx handles the proxying:
 location /api/control/ {
     proxy_pass http://host.docker.internal:3001/;
 }
-
-# Netdata stats
-location /netdata/ {
-    proxy_pass http://netdata:19999/api/v1/;
-}
 ```
 
 ## Bridge API Endpoints
@@ -320,13 +315,13 @@ The bridge service (`/api/control/`) provides these endpoints:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/status` | GET | Gaming mode status (idle/gaming) |
+| `/status` | GET | Mode (gaming/idle) + sunshineOnline |
 | `/apps` | GET | List available Sunshine apps (cached) |
 | `/apps/refresh` | POST | Force refresh of app list cache |
 | `/launch-moonlight?app=<name>` | POST | Launch Moonlight streaming an app |
-| `/exit-gaming` | POST | Stop gaming mode, turn off monitor |
-| `/monitor-on` | POST | Turn monitor on |
-| `/monitor-off` | POST | Turn monitor off |
+| `/exit-gaming` | POST | Stop gaming mode, turn off monitor (DPMS/HDMI) |
+| `/monitor-on` | POST | Turn monitor on (DPMS/HDMI) |
+| `/monitor-off` | POST | Turn monitor off (DPMS/HDMI) |
 | `/reboot` | POST | Reboot the mini PC |
 | `/shutdown` | POST | Shutdown the mini PC |
 | `/health` | GET | Health check |
@@ -334,23 +329,23 @@ The bridge service (`/api/control/`) provides these endpoints:
 ### App List Caching
 
 The `/apps` endpoint returns a cached list of apps from Sunshine. The cache:
-- Refreshes on bridge startup
-- Auto-refreshes every 5 minutes
+- Lazy-loads on first request
+- Auto-refreshes every 5 minutes when stale
 - Can be manually refreshed via `/apps/refresh`
 
 This avoids slow API responses since `moonlight list` requires spawning a virtual X display (xvfb).
 
 ## Custom Hooks
 
-### useNetdataStats
+### useSystemStats
 
-Fetches system metrics from Netdata:
+Fetches system metrics from the bridge API:
 
 ```tsx
-import { useNetdataStats } from '@/hooks/useNetdataStats';
+import { useSystemStats } from '@/hooks/useSystemStats';
 
 function Stats() {
-  const { cpu, ram, disk, network, loading, error } = useNetdataStats(3000);
+  const { cpu, ram, disk, network, loading, error } = useSystemStats(3000);
 
   if (loading) return <Skeleton className="h-20" />;
 

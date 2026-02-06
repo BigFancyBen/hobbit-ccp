@@ -60,7 +60,6 @@ sudo pkill -9 openbox
 
 ```bash
 curl -X POST http://localhost:3001/monitor-on
-# Or: sudo ddcutil setvcp 0xD6 0x01
 ```
 
 # Required Firewall Ports
@@ -74,7 +73,6 @@ curl -X POST http://localhost:3001/monitor-on
 | 1883 | MQTT |
 | 3001 | Bridge API |
 | 5353 | mDNS |
-| 19999 | Netdata |
 
 # Quick Fixes
 

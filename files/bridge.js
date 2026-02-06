@@ -130,15 +130,13 @@ app.post('/exit-gaming', (req, res) => {
   res.json({ status: 'stopped' });
 });
 
-// Monitor power control - uses DPMS when X running, vbetool otherwise
+// Monitor power control - uses DPMS when X running, hdmi-control.sh otherwise
 app.post('/monitor-on', (req, res) => {
   exec('pgrep -x Xorg', (err) => {
     if (!err) {
-      // X is running, use DPMS
       exec('DISPLAY=:0 xset dpms force on');
     } else {
-      // No X, use vbetool
-      exec('sudo vbetool dpms on');
+      exec('sudo /usr/local/bin/hdmi-control.sh on');
     }
     res.json({ status: 'monitor on' });
   });
@@ -147,11 +145,9 @@ app.post('/monitor-on', (req, res) => {
 app.post('/monitor-off', (req, res) => {
   exec('pgrep -x Xorg', (err) => {
     if (!err) {
-      // X is running, use DPMS
       exec('DISPLAY=:0 xset dpms force off');
     } else {
-      // No X, use vbetool
-      exec('sudo vbetool dpms off');
+      exec('sudo /usr/local/bin/hdmi-control.sh off');
     }
     res.json({ status: 'monitor off' });
   });

@@ -15,11 +15,6 @@ export default defineConfig({
       '/api': {
         target: 'http://192.168.0.67',
         changeOrigin: true
-      },
-      '/netdata': {
-        target: 'http://192.168.0.67:19999',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/netdata/, '/api/v1')
       }
     }
   }

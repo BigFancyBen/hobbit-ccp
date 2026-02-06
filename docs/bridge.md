@@ -22,20 +22,18 @@ Some operations can't be done from Docker containers:
 ┌─────────────────────────────────────────────────────────┐
 │  Nginx (Docker)                                         │
 │  - /api/control/* → bridge:3001                         │
-│  - /netdata/*     → netdata:19999                       │
 │  - /*             → static files                        │
 └───────────────────────────┬─────────────────────────────┘
                             │
-              ┌─────────────┴─────────────┐
-              ▼                           ▼
-┌─────────────────────────┐   ┌─────────────────────────┐
-│  Bridge Service         │   │  Netdata (Docker)       │
-│  (host, port 3001)      │   │  CPU, RAM, Disk         │
-│  - GPU stats            │   └─────────────────────────┘
-│  - Network stats        │
-│  - System control       │
-│  - Moonlight launch     │
-└─────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────┐
+│  Bridge Service (host, port 3001)                       │
+│  - System stats (CPU, RAM, GPU, disk, network)          │
+│  - Gaming PC / Sunshine reachability                    │
+│  - Moonlight launch / exit                              │
+│  - Monitor control (HDMI/DPMS)                          │
+│  - Bluetooth management                                 │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ## Adding a New Endpoint
@@ -58,7 +56,7 @@ app.get('/temperature', (req, res) => {
 
 ### 2. Wire it to the web UI
 
-In `web/src/hooks/useNetdataStats.ts` (or create a new hook):
+In `web/src/hooks/useSystemStats.ts` (or create a new hook):
 
 ```typescript
 // Add to the fetch calls
@@ -122,28 +120,42 @@ app.get('/endpoint', (req, res) => {
 });
 ```
 
-### Periodic Polling (sysfs/procfs)
+### Lazy Polling (touch pattern)
 
-For values that can be read directly from files:
+For values that should only be sampled while the frontend is active. The bridge uses this for stats and Sunshine reachability:
 
 ```javascript
 let cachedValue = null;
-let lastRead = 0;
+let interval = null;
+let lastRequest = 0;
+const IDLE_TIMEOUT = 30000;
 
-function updateValue() {
-  try {
-    const data = fs.readFileSync('/path/to/file', 'utf8');
-    cachedValue = parseData(data);
-    lastRead = Date.now();
-  } catch (e) {
-    console.error('Read failed:', e.message);
-  }
+function updateValue() { /* read from /proc, sysfs, etc */ }
+
+function startMonitor() {
+  if (interval) return;
+  updateValue(); // immediate first read
+  interval = setInterval(updateValue, 5000);
 }
 
-setInterval(updateValue, 1000);
-updateValue();
+function stopMonitor() {
+  if (!interval) return;
+  clearInterval(interval);
+  interval = null;
+}
+
+function touch() {
+  lastRequest = Date.now();
+  startMonitor();
+}
+
+// Auto-stop after 30s idle
+setInterval(() => {
+  if (interval && Date.now() - lastRequest > IDLE_TIMEOUT) stopMonitor();
+}, 10000);
 
 app.get('/endpoint', (req, res) => {
+  touch();
   res.json(cachedValue);
 });
 ```
@@ -192,8 +204,11 @@ Commands requiring root access need sudoers entries. Add to `roles/webserver/tas
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Health check |
-| `/status` | GET | Gaming mode status |
+| `/status` | GET | Mode (gaming/idle) + sunshineOnline |
+| `/cpu-stats` | GET | CPU utilization percentage |
+| `/ram-stats` | GET | RAM usage (used/total GB) |
 | `/gpu-stats` | GET | Intel GPU utilization |
+| `/disk-stats` | GET | Disk usage (used/total GB) |
 | `/net-stats` | GET | Network throughput (KB/s) |
 | `/apps` | GET | Available Sunshine apps |
 | `/apps/refresh` | POST | Refresh app list |

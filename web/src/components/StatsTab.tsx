@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSystemStats } from '@/hooks/useNetdataStats';
+import { useSystemStats } from '@/hooks/useSystemStats';
 import { Alert, AlertDescription } from '@/components/ui/8bit/alert';
 import { Button } from '@/components/ui/8bit/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/8bit/card';

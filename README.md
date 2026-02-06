@@ -20,7 +20,7 @@ Transform a Peladn mini PC into a hybrid beast: a 24/7 silent server that can "w
 │  - Bridge.js controls Moonlight     │
 │  - Zigbee2MQTT for smart home       │
 │  - Mosquitto MQTT broker            │
-│  - Netdata monitoring (:19999)      │
+│  - System stats via bridge API      │
 └─────────────────────────────────────┘
                 │
                 ▼ Network stream
@@ -126,7 +126,9 @@ minipc-setup/
 │   ├── MOONLIGHT-PAIRING.md  # Pairing with Sunshine
 │   ├── SECURITY.md           # Security hardening guide
 │   ├── TROUBLESHOOTING.md    # Common issues and fixes
-│   └── WEB-UI.md             # Web UI development guide
+│   ├── WEB-UI.md             # Web UI development guide
+│   ├── bluetooth.md          # Bluetooth controller support
+│   └── bridge.md             # Host bridge service docs
 └── web/                      # React TypeScript SPA (8bitcn)
 ```
 
@@ -136,11 +138,11 @@ The bridge service exposes these endpoints (via `/api/control/`):
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/status` | GET | Current status (gaming/idle) |
+| `/status` | GET | Mode (gaming/idle) + sunshineOnline |
 | `/health` | GET | Health check |
 | `/apps` | GET | List available games from Sunshine |
 | `/launch-moonlight?app=Desktop` | POST | Start streaming an app (1080p 60fps) |
-| `/exit-gaming` | POST | Stop Moonlight/X and turn off monitor (via DDC/CI) |
+| `/exit-gaming` | POST | Stop Moonlight/X and turn off monitor |
 | `/reboot` | POST | Reboot the mini PC |
 
 ## Verification
@@ -149,7 +151,7 @@ After deployment:
 
 - [ ] `ping hobbit.local` resolves (or use IP)
 - [ ] http://hobbit.local loads React SPA
-- [ ] Status shows "Idle" initially
+- [ ] Status shows "Online" or "Offline" based on gaming PC reachability
 - [ ] Gaming buttons launch Moonlight (monitor turns on automatically)
 - [ ] Exit Gaming Mode stops streaming (monitor turns off automatically)
 
@@ -163,12 +165,6 @@ The server is hardened for LAN-only access:
 - **Nginx**: Security headers + hostname validation
 
 See [docs/SECURITY.md](docs/SECURITY.md) for full details.
-
-## Monitoring
-
-Real-time system monitoring via Netdata at http://hobbit.local:19999
-
-Monitors CPU, RAM, disk, network, Docker containers, and system temperature.
 
 ## Backups
 
@@ -199,3 +195,5 @@ ssh hobbit@192.168.0.67 'systemctl status hobbit-backup.timer'
 - [Security Hardening](docs/SECURITY.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Web UI Development](docs/WEB-UI.md)
+- [Bluetooth Controllers](docs/bluetooth.md)
+- [Bridge Service](docs/bridge.md)

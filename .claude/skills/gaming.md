@@ -1,6 +1,6 @@
 ---
 name: gaming
-description: Manage Moonlight game streaming on the Hobbit mini PC. Use when pairing with Sunshine, starting/stopping gaming mode, troubleshooting streams, or controlling the monitor via DDC/CI.
+description: Manage Moonlight game streaming on the Hobbit mini PC. Use when pairing with Sunshine, starting/stopping gaming mode, troubleshooting streams, or controlling the monitor.
 ---
 
 # Architecture
@@ -42,12 +42,12 @@ moonlight list 192.168.0.69
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/control/status` | GET | Current mode (gaming/idle) |
+| `/api/control/status` | GET | Mode (gaming/idle) + sunshineOnline |
 | `/api/control/apps` | GET | List available games |
 | `/api/control/launch-moonlight?app=Desktop` | POST | Start streaming |
 | `/api/control/exit-gaming` | POST | Stop streaming |
-| `/api/control/monitor-on` | POST | Turn monitor on (DDC/CI) |
-| `/api/control/monitor-off` | POST | Turn monitor off (DDC/CI) |
+| `/api/control/monitor-on` | POST | Turn monitor on (DPMS/HDMI) |
+| `/api/control/monitor-off` | POST | Turn monitor off (DPMS/HDMI) |
 
 # Gaming Mode Components
 
@@ -68,7 +68,6 @@ sudo pkill -9 openbox
 **Monitor stays blank**
 ```bash
 curl -X POST http://localhost:3001/monitor-on
-# Or: sudo ddcutil setvcp 0xD6 0x01
 ```
 
 **Stream not filling screen**

@@ -115,7 +115,7 @@ ssh hobbit "journalctl -u hobbit-bridge -f"
 
 | File | Purpose |
 |------|---------|
-| `files/bridge.js` | Bluetooth API endpoints (lines 296-450) |
+| `files/bridge.js` | Bluetooth API endpoints |
 | `web/src/hooks/useBluetooth.ts` | React hook for Bluetooth state |
 | `web/src/components/BluetoothSection.tsx` | UI component |
 | `web/src/components/SystemTab.tsx` | Contains BluetoothSection |
