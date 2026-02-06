@@ -118,10 +118,16 @@ app.post('/apps/refresh', (req, res) => {
 
 // Kill Moonlight and X, then cleanup
 app.post('/exit-gaming', (req, res) => {
-  exec('sudo pkill -9 Xorg; sudo pkill -9 xinit; sudo pkill -9 moonlight', (err) => {
-    setTimeout(cleanupGamingSession, 500);
-    res.json({ status: 'stopped' });
+  // Turn off monitor FIRST while Xorg is still running (DPMS works reliably)
+  exec('DISPLAY=:0 xset dpms force off', () => {
+    // Small delay to let DPMS take effect before killing X
+    setTimeout(() => {
+      exec('sudo pkill -9 Xorg; sudo pkill -9 xinit; sudo pkill -9 moonlight', () => {
+        setTimeout(cleanupGamingSession, 500);
+      });
+    }, 200);
   });
+  res.json({ status: 'stopped' });
 });
 
 // Monitor power control - uses DPMS when X running, vbetool otherwise
