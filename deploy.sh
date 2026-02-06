@@ -33,11 +33,9 @@ sleep 5
 
 API_STATUS=$(curl -sf -H "Host: hobbit.local" http://192.168.0.67/api/control/health 2>/dev/null && echo "OK" || echo "FAILED")
 WEB_STATUS=$(curl -sf -H "Host: hobbit.local" http://192.168.0.67/ >/dev/null 2>&1 && echo "OK" || echo "FAILED")
-NETDATA_STATUS=$(curl -sf http://192.168.0.67:19999/api/v1/info >/dev/null 2>&1 && echo "OK" || echo "FAILED")
 
 echo "      Bridge API:  $API_STATUS"
 echo "      Web UI:      $WEB_STATUS"
-echo "      Netdata:     $NETDATA_STATUS"
 echo ""
 
 if [ "$API_STATUS" = "OK" ] && [ "$WEB_STATUS" = "OK" ]; then

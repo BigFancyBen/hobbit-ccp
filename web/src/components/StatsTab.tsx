@@ -13,13 +13,27 @@ export function StatsTab() {
     );
   }
 
+  // Detect cold start: monitors just started, waiting for first real data
+  const isWarmingUp = !loading &&
+    cpu?.usage === 0 &&
+    gpu?.usage === 0 &&
+    (ram?.used === 0 || !ram) &&
+    (disk?.used === 0 || !disk);
+
+  const showLoading = loading || isWarmingUp;
+
   return (
     <div className="space-y-6 py-4 mx-2">
-      <CpuBar usage={cpu?.usage} loading={loading} />
-      <GpuBar usage={gpu?.usage} loading={loading} />
-      <RamBar used={ram?.used} total={ram?.total} loading={loading} />
-      <DiskBar used={disk?.used} total={disk?.total} loading={loading} />
-      <NetworkBadges received={network?.received} sent={network?.sent} loading={loading} />
+      {isWarmingUp && (
+        <p className="text-xs text-muted-foreground text-center animate-pulse">
+          Starting monitors...
+        </p>
+      )}
+      <CpuBar usage={cpu?.usage} loading={showLoading} />
+      <GpuBar usage={gpu?.usage} loading={showLoading} />
+      <RamBar used={ram?.used} total={ram?.total} loading={showLoading} />
+      <DiskBar used={disk?.used} total={disk?.total} loading={showLoading} />
+      <NetworkBadges received={network?.received} sent={network?.sent} loading={showLoading} />
     </div>
   );
 }

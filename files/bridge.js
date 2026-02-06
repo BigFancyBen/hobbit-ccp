@@ -9,14 +9,19 @@ app.use(express.json());
 // Gaming PC with Sunshine server
 const GAMING_PC = process.env.GAMING_PC_HOST || '192.168.0.69';
 
-// Cached app list - refreshed periodically
+// Cached app list - refreshed on-demand when stale
 let cachedApps = ['Desktop'];
 let lastAppRefresh = 0;
+let appRefreshInProgress = false;
 const APP_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 function refreshAppList() {
+  if (appRefreshInProgress) return;
+  appRefreshInProgress = true;
+
   const env = { ...process.env, HOME: '/home/hobbit', XDG_RUNTIME_DIR: '/run/user/1000' };
-  exec(`xvfb-run -a moonlight list "${GAMING_PC}"`, { timeout: 15000, env }, (err, stdout, stderr) => {
+  exec(`xvfb-run -a moonlight list "${GAMING_PC}"`, { timeout: 15000, env }, (err, stdout) => {
+    appRefreshInProgress = false;
     if (err) {
       console.error('Failed to refresh app list:', err.message);
       return;
@@ -33,9 +38,13 @@ function refreshAppList() {
   });
 }
 
-// Refresh app list on startup and every 5 minutes
-refreshAppList();
-setInterval(refreshAppList, APP_CACHE_TTL);
+function refreshAppListIfStale() {
+  if (Date.now() - lastAppRefresh > APP_CACHE_TTL) {
+    refreshAppList();
+  }
+}
+
+// No startup refresh - lazy load on first request
 
 // Ensure HDMI is off on startup (default idle state)
 exec('sudo /usr/local/bin/hdmi-control.sh off', (err) => {
@@ -97,6 +106,7 @@ sleep 1 && su hobbit -c "DISPLAY=:0 moonlight stream ${GAMING_PC} \\"${appName}\
 // List available apps from Sunshine on gaming PC (returns cached list)
 // These names can be passed directly to /launch-moonlight?app=
 app.get('/apps', (req, res) => {
+  refreshAppListIfStale();
   res.json({ apps: cachedApps });
 });
 
@@ -176,7 +186,6 @@ function startGpuMonitor() {
   if (gpuStatsProcess) return;
 
   console.log('Starting GPU monitor...');
-  // Use full path and pipe through jq for compact JSON (one object per line)
   gpuStatsProcess = spawn('sh', ['-c', 'sudo /usr/bin/intel_gpu_top -J -s 2000 2>/dev/null'], {
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -246,7 +255,10 @@ function startGpuMonitor() {
   gpuStatsProcess.on('close', (code) => {
     console.log('GPU monitor exited with code', code);
     gpuStatsProcess = null;
-    setTimeout(startGpuMonitor, 5000);
+    // Only auto-restart if stats monitor is still active (not intentionally stopped)
+    if (statsMonitorActive) {
+      setTimeout(startGpuMonitor, 5000);
+    }
   });
 
   gpuStatsProcess.on('error', (err) => {
@@ -255,14 +267,98 @@ function startGpuMonitor() {
   });
 }
 
-startGpuMonitor();
+// GPU monitor is started on-demand by stats monitor
 
 app.get('/gpu-stats', (req, res) => {
+  touchStats();
   res.json(gpuStats);
 });
 
-// Network stats - reads /proc/net/dev and calculates rate
+// System stats - reads from /proc
 const fs = require('fs');
+
+// CPU stats - reads /proc/stat and calculates usage percentage
+let lastCpuStats = null;
+let cpuUsage = { usage_percent: 0 };
+
+function parseCpuStats() {
+  try {
+    const data = fs.readFileSync('/proc/stat', 'utf8');
+    const line = data.split('\n')[0]; // First line is aggregate CPU
+    const parts = line.split(/\s+/).slice(1).map(Number);
+    // user, nice, system, idle, iowait, irq, softirq, steal
+    const idle = parts[3] + (parts[4] || 0); // idle + iowait
+    const total = parts.reduce((sum, val) => sum + val, 0);
+    return { idle, total };
+  } catch (e) {
+    return null;
+  }
+}
+
+function updateCpuUsage() {
+  const current = parseCpuStats();
+  if (!current) return;
+
+  if (lastCpuStats) {
+    const idleDiff = current.idle - lastCpuStats.idle;
+    const totalDiff = current.total - lastCpuStats.total;
+    if (totalDiff > 0) {
+      cpuUsage = { usage_percent: Math.round(100 * (1 - idleDiff / totalDiff)) };
+    }
+  }
+
+  lastCpuStats = current;
+}
+
+// CPU polling is started on-demand by stats monitor
+
+// RAM stats - reads /proc/meminfo
+function getRamStats() {
+  try {
+    const data = fs.readFileSync('/proc/meminfo', 'utf8');
+    const getValue = (key) => {
+      const match = data.match(new RegExp(`${key}:\\s+(\\d+)`));
+      return match ? parseInt(match[1], 10) : 0;
+    };
+    const total = getValue('MemTotal');
+    const free = getValue('MemFree');
+    const buffers = getValue('Buffers');
+    const cached = getValue('Cached');
+    const available = getValue('MemAvailable');
+    // Used = Total - Available (more accurate than Total - Free)
+    const used = total - available;
+    return {
+      used_gb: Math.round((used / 1024 / 1024) * 10) / 10,
+      total_gb: Math.round((total / 1024 / 1024) * 10) / 10,
+      usage_percent: Math.round((used / total) * 100)
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+// Disk stats - uses df for root partition
+let diskStats = null;
+
+function updateDiskStats() {
+  exec('df -B1 / | tail -1', (err, stdout) => {
+    if (err) return;
+    const parts = stdout.trim().split(/\s+/);
+    if (parts.length >= 4) {
+      const total = parseInt(parts[1], 10);
+      const used = parseInt(parts[2], 10);
+      diskStats = {
+        used_gb: Math.round((used / 1024 / 1024 / 1024) * 10) / 10,
+        total_gb: Math.round((total / 1024 / 1024 / 1024) * 10) / 10,
+        usage_percent: Math.round((used / total) * 100)
+      };
+    }
+  });
+}
+
+// Disk polling is started on-demand by stats monitor
+
+// Network stats - reads /proc/net/dev and calculates rate
 let lastNetStats = null;
 let lastNetTime = 0;
 let netRate = { received_kbps: 0, sent_kbps: 0 };
@@ -310,12 +406,83 @@ function updateNetRate() {
   lastNetTime = now;
 }
 
-// Update network rate every second
-setInterval(updateNetRate, 1000);
-updateNetRate();
+// Network polling is started on-demand by stats monitor
+
+// Lazy stats monitoring - only runs when someone is viewing stats
+let statsMonitorActive = false;
+let lastStatsRequest = 0;
+let cpuInterval = null;
+let netInterval = null;
+let diskInterval = null;
+const STATS_IDLE_TIMEOUT = 30000; // Stop after 30s of no requests
+
+function startStatsMonitor() {
+  if (statsMonitorActive) return;
+  statsMonitorActive = true;
+  console.log('Stats monitor starting...');
+
+  // Start GPU monitor (subprocess)
+  startGpuMonitor();
+
+  // Start polling intervals
+  updateCpuUsage();
+  cpuInterval = setInterval(updateCpuUsage, 1000);
+
+  updateNetRate();
+  netInterval = setInterval(updateNetRate, 1000);
+
+  updateDiskStats();
+  diskInterval = setInterval(updateDiskStats, 30000);
+}
+
+function stopStatsMonitor() {
+  if (!statsMonitorActive) return;
+  statsMonitorActive = false;
+  console.log('Stats monitor stopping (idle)...');
+
+  // Stop GPU monitor - use pkill since sudo runs outside process group
+  if (gpuStatsProcess) {
+    exec('sudo pkill -f intel_gpu_top');
+    gpuStatsProcess = null;
+  }
+
+  // Clear intervals
+  if (cpuInterval) { clearInterval(cpuInterval); cpuInterval = null; }
+  if (netInterval) { clearInterval(netInterval); netInterval = null; }
+  if (diskInterval) { clearInterval(diskInterval); diskInterval = null; }
+}
+
+function touchStats() {
+  lastStatsRequest = Date.now();
+  startStatsMonitor();
+}
+
+// Check for idle timeout every 10 seconds
+setInterval(() => {
+  if (statsMonitorActive && Date.now() - lastStatsRequest > STATS_IDLE_TIMEOUT) {
+    stopStatsMonitor();
+  }
+}, 10000);
 
 app.get('/net-stats', (req, res) => {
+  touchStats();
   res.json(netRate);
+});
+
+app.get('/cpu-stats', (req, res) => {
+  touchStats();
+  res.json(cpuUsage);
+});
+
+app.get('/ram-stats', (req, res) => {
+  touchStats();
+  const stats = getRamStats();
+  res.json(stats || { used_gb: 0, total_gb: 0, usage_percent: 0 });
+});
+
+app.get('/disk-stats', (req, res) => {
+  touchStats();
+  res.json(diskStats || { used_gb: 0, total_gb: 0, usage_percent: 0 });
 });
 
 // Bluetooth controller management
