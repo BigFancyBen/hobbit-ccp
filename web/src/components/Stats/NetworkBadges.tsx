@@ -12,10 +12,7 @@ export function NetworkBadges({ received, sent, loading }: NetworkBadgesProps) {
     return (
       <div className="space-y-2">
         <Skeleton className="h-4 w-16" />
-        <div className="flex gap-4">
-          <Skeleton className="h-10 flex-1" />
-          <Skeleton className="h-10 flex-1" />
-        </div>
+        <Skeleton className="h-10 w-full" />
       </div>
     );
   }
@@ -23,16 +20,16 @@ export function NetworkBadges({ received, sent, loading }: NetworkBadgesProps) {
   return (
     <div className="space-y-2">
       <h4 className="text-xs sm:text-sm font-semibold retro">Network</h4>
-      <div className="flex gap-4">
-        <Badge variant="outline" className="flex-1 justify-center py-2 text-xs">
-          <span className="text-green-500 mr-1">{'<'}</span>
-          {received ?? 0} KB/s
-        </Badge>
-        <Badge variant="outline" className="flex-1 justify-center py-2 text-xs">
-          {sent ?? 0} KB/s
-          <span className="text-blue-500 ml-1">{'>'}</span>
-        </Badge>
-      </div>
+      <Badge variant="outline" className="w-full justify-center py-2 text-xs gap-4">
+        <span className="flex items-center gap-1">
+          <span className="text-green-500">↓</span>
+          {received ?? 0}
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="text-blue-500">↑</span>
+          {sent ?? 0}
+        </span>
+      </Badge>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import './index.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <Toaster
-      position="top-center"
+      position="bottom-center"
       toastOptions={{
         className: 'retro',
         duration: 2000,

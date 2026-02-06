@@ -37,24 +37,32 @@ interface Stats {
   error: string | null;
 }
 
-export function useNetdataStats(refreshInterval = 3000): Stats {
+const DEFAULT_STATS: Stats = {
+  cpu: null,
+  ram: null,
+  disk: null,
+  network: null,
+  gpu: null,
+  loading: false,
+  error: null
+};
+
+export function useSystemStats(refreshInterval: number | null = 3000): Stats {
   const [stats, setStats] = useState<Stats>(() => {
+    if (!refreshInterval) return DEFAULT_STATS;
     const cached = getCache<Stats>(CACHE_KEY);
     if (cached) {
       return { ...cached, loading: false, error: null };
     }
-    return {
-      cpu: null,
-      ram: null,
-      disk: null,
-      network: null,
-      gpu: null,
-      loading: true,
-      error: null
-    };
+    return { ...DEFAULT_STATS, loading: true };
   });
 
   useEffect(() => {
+    if (!refreshInterval) {
+      setStats(DEFAULT_STATS);
+      return;
+    }
+
     const fetchStats = async () => {
       try {
         const [cpuRes, ramRes, diskRes, gpuRes, netRes] = await Promise.all([
@@ -93,6 +101,7 @@ export function useNetdataStats(refreshInterval = 3000): Stats {
       }
     };
 
+    setStats(prev => ({ ...prev, loading: true }));
     fetchStats();
     const interval = setInterval(fetchStats, refreshInterval);
     return () => clearInterval(interval);
@@ -100,3 +109,6 @@ export function useNetdataStats(refreshInterval = 3000): Stats {
 
   return stats;
 }
+
+// Alias for backwards compatibility
+export const useNetdataStats = useSystemStats;

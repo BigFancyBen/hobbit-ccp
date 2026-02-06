@@ -48,11 +48,11 @@ interface SettingsModalProps {
   loading: string | null;
 }
 
-const TABS = ['stats', 'system'] as const;
+const TABS = ['system', 'stats'] as const;
 type TabKey = (typeof TABS)[number];
 
 export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
-  const [tab, setTab] = useState<TabKey>('stats');
+  const [tab, setTab] = useState<TabKey>('system');
   const [isOpen, setIsOpen] = useState(false);
   const prevTabIndexRef = useRef(0);
 
@@ -148,16 +148,6 @@ export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
                 {/* Simple Tab Buttons */}
                 <div className="flex gap-2 mb-3 shrink-0">
                   <button
-                    onClick={() => setTab('stats')}
-                    className={`flex-1 h-12 text-sm retro touch-manipulation transition-colors ${
-                      tab === 'stats'
-                        ? 'bg-accent text-foreground'
-                        : 'bg-secondary text-muted-foreground'
-                    }`}
-                  >
-                    Stats
-                  </button>
-                  <button
                     onClick={() => setTab('system')}
                     className={`flex-1 h-12 text-sm retro touch-manipulation transition-colors ${
                       tab === 'system'
@@ -166,6 +156,16 @@ export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
                     }`}
                   >
                     System
+                  </button>
+                  <button
+                    onClick={() => setTab('stats')}
+                    className={`flex-1 h-12 text-sm retro touch-manipulation transition-colors ${
+                      tab === 'stats'
+                        ? 'bg-accent text-foreground'
+                        : 'bg-secondary text-muted-foreground'
+                    }`}
+                  >
+                    Stats
                   </button>
                 </div>
 
@@ -180,8 +180,8 @@ export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
                         left: 0,
                       }}
                     >
-                      {currentTab === 'stats' && <StatsTab />}
                       {currentTab === 'system' && <SystemTab onReboot={onReboot} loading={loading} />}
+                      {currentTab === 'stats' && <StatsTab />}
                     </animated.div>
                   ))}
                 </div>
