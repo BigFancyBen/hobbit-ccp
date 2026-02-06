@@ -170,7 +170,7 @@ export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
                 </div>
 
                 {/* Tab Content */}
-                <div className="h-104 overflow-y-auto overflow-x-hidden px-1 relative">
+                <div className="h-128 overflow-y-auto overflow-x-hidden px-1 relative">
                   {tabTransition((style, currentTab) => (
                     <animated.div
                       style={{
