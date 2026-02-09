@@ -78,11 +78,26 @@
         dest: "{{ hobbit_dir }}/docker-compose.yml"
       notify: Restart docker services
 
-    - name: Copy Nginx config
-      copy:
+    - name: Template Nginx config
+      template:
         src: ../files/nginx.conf
         dest: "{{ hobbit_dir }}/nginx.conf"
       notify: Restart docker services
+
+    - name: Provision Tailscale HTTPS cert
+      command: tailscale cert --cert-file {{ hobbit_dir }}/ssl/tailscale.crt --key-file {{ hobbit_dir }}/ssl/tailscale.key {{ tailscale_fqdn }}
+      when: tailscale_fqdn is defined
+      register: tailscale_cert
+      changed_when: tailscale_cert.rc == 0
+      failed_when: false
+      notify: Restart docker services
+
+    - name: Set up monthly Tailscale cert renewal
+      cron:
+        name: "Renew Tailscale HTTPS cert"
+        job: "tailscale cert --cert-file {{ hobbit_dir }}/ssl/tailscale.crt --key-file {{ hobbit_dir }}/ssl/tailscale.key {{ tailscale_fqdn }} && docker restart hobbit-webserver-1"
+        special_time: monthly
+      when: tailscale_fqdn is defined
 
     - name: Copy Mosquitto config
       copy:

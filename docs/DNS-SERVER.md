@@ -128,6 +128,16 @@ sudo systemctl restart dnsmasq
 journalctl -u dnsmasq -f
 ```
 
+## Tailscale Split DNS
+
+When away from the LAN, Tailscale's Split DNS routes `*.house` queries to the mini PC's dnsmasq (via Tailscale IP `100.91.142.95`). Combined with subnet routing (`192.168.0.0/24`), `hobbit.house` resolves and is reachable from anywhere on the tailnet.
+
+Configuration is in the Tailscale admin console (DNS → Split DNS):
+- Domain: `house`
+- Nameserver: `100.91.142.95`
+
+UFW allows DNS queries on the `tailscale0` interface (port 53/udp). See `roles/tailscale/tasks/main.yml`.
+
 ## Ansible Role
 
 The DNS server is configured by the `dns` role in `roles/dns/`. Key files:

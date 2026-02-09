@@ -28,6 +28,7 @@ This configures passwordless sudo for all future deployments.
 |------|------------|
 | base | mDNS (avahi), UFW firewall, Docker, Node.js, backups |
 | security | SSH hardening (key-only), unattended-upgrades |
+| tailscale | WireGuard mesh VPN, subnet routing, Split DNS UFW rule |
 | dns | dnsmasq local DNS server |
 | moonlight | X11, Moonlight AppImage, openbox |
 | zigbee | Zigbee2MQTT, Mosquitto MQTT broker |
@@ -42,7 +43,15 @@ This configures passwordless sudo for all future deployments.
    ```
    Enter PIN shown on Sunshine web UI, then `Ctrl+Q` to exit.
 
-2. **Deploy web UI**:
+2. **Authenticate Tailscale** (one-time):
+   ```bash
+   ssh hobbit@192.168.0.67
+   sudo tailscale up
+   ```
+   Click auth URL, approve device, note MagicDNS name. Set `tailscale_fqdn` in `group_vars/all.yml`.
+   Approve subnet route and configure Split DNS in Tailscale admin console.
+
+3. **Deploy web UI**:
    ```bash
    ./deploy.sh
    ```

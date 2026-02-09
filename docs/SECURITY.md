@@ -2,12 +2,13 @@
 
 This document describes the security measures implemented on the Hobbit Mini PC to make it safe for 24/7 operation on a home LAN.
 
-## Security Model: LAN-Only Access
+## Security Model: LAN + Tailscale Access
 
-The server follows a "one-way valve" model:
-- **Inbound**: Only accessible from LAN (192.168.0.0/24)
-- **Outbound**: Can reach the internet freely (for updates)
-- **Invisible** from outside the home network
+The server follows a layered access model:
+- **LAN (192.168.0.0/24)**: Full access to all services via UFW rules
+- **Tailscale**: Web UI and SilverBullet via nginx (Docker bypasses UFW); DNS via targeted UFW rule. Bridge API, SSH, and MQTT are NOT accessible from Tailscale.
+- **Internet**: Blocked inbound (UFW deny incoming). Outbound allowed for updates.
+- See `docs/tailscale.md` for the full Tailscale security model.
 
 ## Implemented Security Measures
 
@@ -24,11 +25,15 @@ All services are restricted to the local subnet `192.168.0.0/24`.
 | 80 | HTTP | Nginx web UI |
 | 443 | HTTPS | Nginx (self-signed cert) |
 | 853 | DNS-over-TLS | Required for Android |
-| 1883 | MQTT | Mosquitto broker |
-| 3001 | Bridge API | Moonlight/monitor control |
 | 5353 | mDNS | avahi-daemon |
 
-**Configuration:** [roles/base/tasks/main.yml](../roles/base/tasks/main.yml)
+Additionally:
+- **Port 53/udp** is allowed on the `tailscale0` interface (for Split DNS)
+- **Port 1883** (MQTT) is bound to `127.0.0.1` in Docker — not reachable externally regardless of UFW
+- **Port 3001** (Bridge API) has no UFW rule — only reachable via nginx proxy (Docker network)
+- **Ports 80/443** (Docker-published) bypass UFW entirely via iptables FORWARD chain
+
+**Configuration:** [roles/base/tasks/main.yml](../roles/base/tasks/main.yml), [roles/tailscale/tasks/main.yml](../roles/tailscale/tasks/main.yml)
 
 ```yaml
 - name: Configure firewall - LAN only
@@ -42,9 +47,7 @@ All services are restricted to the local subnet `192.168.0.0/24`.
     - "80"    # HTTP
     - "443"   # HTTPS
     - "853"   # DNS-over-TLS (Android)
-    - "3001"  # Bridge API
     - "5353"  # mDNS
-    - "1883"  # MQTT
 ```
 
 ### 2. SSH Key-Only Authentication
@@ -104,7 +107,7 @@ server_tokens off;
 
 ### 5. Nginx Hostname Validation
 
-Requests must use a valid hostname (`hobbit`, `hobbit.local`, or `hobbit.house`). Requests with other Host headers are rejected on both HTTP and HTTPS.
+Requests must use a valid hostname (`hobbit`, `hobbit.local`, `hobbit.house`, or the Tailscale FQDN). Requests with other Host headers are rejected on both HTTP and HTTPS.
 
 ```nginx
 # Reject requests with unknown Host headers
@@ -118,6 +121,16 @@ server {
 ```
 
 This prevents DNS rebinding attacks through the browser.
+
+### 6. Input Validation (Bridge API)
+
+All bridge endpoints that pass user input to shell commands validate inputs:
+- **`/launch-moonlight?app=`**: App name validated against `cachedApps` allowlist (prevents command injection)
+- **`/bluetooth/*`**: MAC addresses validated against `/^[A-F0-9:]+$/i` regex on all endpoints (pair, connect, disconnect, remove)
+
+### 7. MQTT Bound to Localhost
+
+MQTT (`mosquitto`) is published on `127.0.0.1:1883` in Docker — it never listens on external interfaces. Docker-published ports bypass UFW, so binding to localhost is the only reliable way to prevent external access. The bridge connects via localhost; Zigbee2MQTT connects via Docker's internal network.
 
 ### 6. Zigbee Network Security
 
@@ -134,8 +147,8 @@ This prevents DNS rebinding attacks through the browser.
 
 | Feature | Decision | Reason |
 |---------|----------|--------|
-| HTTPS (public CA) | Skip | Self-signed cert used instead. LAN-only server can't get a real CA cert. Browser warnings are accepted for SilverBullet; the main web UI uses plain HTTP. |
-| MQTT authentication | Skip | Firewall blocks external access. Adds complexity for no benefit on LAN. |
+| HTTPS (public CA) | Partial | Tailscale FQDN has a valid Let's Encrypt cert via `tailscale cert`. LAN hostnames use self-signed. |
+| MQTT authentication | Skip | MQTT bound to `127.0.0.1` — unreachable externally. Adds complexity for no benefit. |
 | Zigbee2MQTT frontend auth | Skip | Not natively supported. UFW is sufficient. |
 | fail2ban | Skip | With key-only SSH + LAN firewall, brute force is impossible. |
 | DNS rebinding protection (stop-dns-rebind) | Skip | Breaks Android connectivity checks. See below. |
@@ -206,27 +219,35 @@ Internet
 │                                                         │
 │  UFW Firewall: deny incoming, allow outgoing            │
 │  ┌─────────────────────────────────────────────────┐    │
-│  │ Allowed from 192.168.0.0/24 only:               │    │
+│  │ UFW: Allowed from 192.168.0.0/24 only:         │    │
 │  │   :22    SSH (key-only)                         │    │
 │  │   :53    DNS                                    │    │
 │  │   :80    HTTP                                   │    │
-│  │   :443   HTTPS (self-signed)                    │    │
+│  │   :443   HTTPS                                  │    │
 │  │   :853   DNS-over-TLS                           │    │
-│  │   :1883  MQTT                                   │    │
-│  │   :3001  Bridge API                             │    │
 │  │   :5353  mDNS                                   │    │
+│  │                                                  │    │
+│  │ UFW: Allowed on tailscale0:                     │    │
+│  │   :53/udp  DNS (Split DNS for .house)           │    │
+│  │                                                  │    │
+│  │ Docker (bypasses UFW):                          │    │
+│  │   :80/:443  Nginx (0.0.0.0)                     │    │
+│  │                                                  │    │
+│  │ Localhost only:                                  │    │
+│  │   :1883  MQTT (127.0.0.1 bind)                  │    │
+│  │   :3001  Bridge (nginx proxies via Docker net)   │    │
 │  └─────────────────────────────────────────────────┘    │
 │                                                         │
 │  Outbound: ──────────────────────────────────────► OK   │
 │  (Updates, Docker pulls, etc.)                          │
 └─────────────────────────────────────────────────────────┘
-    ▲
-    │ (ALLOWED from LAN)
-┌───────────────────────┐
-│  LAN Devices          │
-│  192.168.0.0/24       │
-│  - Phone              │
-│  - Laptop             │
-│  - Gaming PC          │
-└───────────────────────┘
+    ▲                              ▲
+    │ (LAN)                        │ (Tailscale tunnel)
+┌───────────────────────┐  ┌──────────────────────────┐
+│  LAN Devices          │  │  Tailscale Peers          │
+│  192.168.0.0/24       │  │  100.64.0.0/10            │
+│  - Phone (home)       │  │  - Phone (remote)         │
+│  - Laptop             │  │  Subnet routing:           │
+│  - Gaming PC          │  │    can reach 192.168.0.0/24│
+└───────────────────────┘  └──────────────────────────┘
 ```

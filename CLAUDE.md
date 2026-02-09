@@ -9,11 +9,12 @@ Hobbit Mini PC Setup — transforms a Peladn mini PC into a hybrid LAN gaming de
 ## Architecture
 
 ```
-Phone/Browser → Nginx (Docker, port 80) → React SPA (static files)
-                                        → /api/control/* → Bridge (host, port 3001)
-                                        → /zigbee/*      → Zigbee2MQTT (Docker, 8080)
+Phone/Browser → Nginx (Docker, port 80/443) → React SPA (static files)
+                                             → /api/control/* → Bridge (host, port 3001)
+                                             → /zigbee/*      → Zigbee2MQTT (Docker, 8080)
+                                             → /sb/*          → SilverBullet (Docker, 3000)
 
-Also running: Mosquitto MQTT (Docker, 1883), dnsmasq (host)
+Also running: Mosquitto MQTT (Docker, 127.0.0.1:1883), dnsmasq (host), Tailscale (host)
 ```
 
 The bridge runs on the host (not in Docker) because it needs direct access to `/proc`, X11, `bluetoothctl`, HDMI control, and other system-level operations.
@@ -51,7 +52,7 @@ There are no tests or linting configured.
 - `files/bridge.js` — Express backend (single file, ~700 lines), deployed to mini PC
 - `files/silverbullet/` — SilverBullet theme (STYLES.md deployed to space/)
 - `files/` — All config files deployed by Ansible (docker-compose, nginx, systemd, etc.)
-- `roles/` — Ansible roles (base, security, dns, moonlight, zigbee, webserver)
+- `roles/` — Ansible roles (base, security, tailscale, dns, moonlight, zigbee, webserver)
 - `playbooks/` — Ansible playbooks (setup.yml for first-time, deploy.yml for updates)
 - `docs/` — Detailed docs on bridge API, Bluetooth, DNS, security, troubleshooting
 
@@ -82,7 +83,7 @@ The dev proxy in `web/vite.config.js` points to the real mini PC at `192.168.0.6
 ## Infrastructure Config
 
 - `inventory.ini` — Target host: hobbit at 192.168.0.67
-- `group_vars/all.yml` — Gaming PC IP (192.168.0.69), timezone, paths, LAN subnet
-- `docker-compose.yml` (in `files/`) — Nginx, Mosquitto, Zigbee2MQTT containers
-- `nginx.conf` — SPA routing + API proxy + DNS rebinding protection
+- `group_vars/all.yml` — Gaming PC IP (192.168.0.69), timezone, paths, LAN subnet, `tailscale_fqdn`
+- `docker-compose.yml` (in `files/`) — Nginx, Mosquitto, Zigbee2MQTT, SilverBullet containers
+- `nginx.conf` — Jinja2 template: SPA routing, API proxy, DNS rebinding protection, Tailscale HTTPS server block
 - `hobbit-bridge.service` — Systemd unit for the bridge (auto-restart, runs as hobbit user)

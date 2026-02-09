@@ -27,7 +27,7 @@ Some operations can't be done from Docker containers:
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────┐
-│  Bridge Service (host, port 3001)                       │
+│  Bridge Service (host, port 3001 — nginx proxy only)    │
 │  - System stats (CPU, RAM, GPU, disk, network)          │
 │  - Gaming PC / Sunshine reachability                    │
 │  - Moonlight launch / exit                              │
@@ -227,6 +227,13 @@ Commands requiring root access need sudoers entries. Add to `roles/webserver/tas
 | `/bluetooth/device/:mac` | DELETE | Remove paired device |
 
 See `docs/bluetooth.md` for full Bluetooth documentation.
+
+## Security
+
+- **Port 3001 is not directly exposed** — no UFW rule exists. All access goes through nginx's `/api/control/` proxy (Docker network). This prevents Tailscale peers or LAN devices from bypassing nginx.
+- **Input validation**: All endpoints that pass user input to shell commands validate the input:
+  - `/launch-moonlight?app=`: Validated against `cachedApps` allowlist
+  - `/bluetooth/*`: MAC addresses validated against `/^[A-F0-9:]+$/i` regex
 
 ## Debugging
 

@@ -6,7 +6,7 @@ SilverBullet is a markdown-based wiki/note-taking app running as a Docker contai
 
 - **URL**: `https://hobbit.house/sb`
 - **Credentials**: Configured via `sb_user` in `group_vars/all.yml` (default: `hobbit:changeme`)
-- **IP restriction**: Only accessible from 192.168.0.70 and 192.168.0.69 (configured in `nginx.conf`)
+- **IP restriction**: Accessible from 192.168.0.70, 192.168.0.69, and Tailscale peers (100.64.0.0/10) — configured in `nginx.conf`
 
 ## Architecture
 
@@ -84,16 +84,19 @@ Notes are stored as markdown files in `/home/hobbit/hobbit/space/` on the mini P
 
 ## Allowing Additional Devices
 
-Add IP addresses to the `/sb/` location block in `files/nginx.conf`:
+**LAN devices**: Add IP addresses to the `/sb/` location block in `files/nginx.conf`:
 
 ```nginx
 location /sb/ {
     allow 192.168.0.70;
     allow 192.168.0.69;
-    allow 192.168.0.XX;  # new device
+    allow 100.64.0.0/10;  # All Tailscale peers
+    allow 192.168.0.XX;   # new LAN device
     deny all;
     ...
 }
 ```
 
 Then deploy with `./deploy.sh`.
+
+**Remote devices**: Any device on your Tailscale network (`100.64.0.0/10`) is already allowed. Just install Tailscale and sign in with the same account.

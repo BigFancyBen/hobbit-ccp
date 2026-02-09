@@ -196,7 +196,7 @@ ssh hobbit@hobbit.local
 sudo ufw status
 ```
 
-### Required ports
+### Required ports (UFW from LAN)
 
 | Port | Service | Notes |
 |------|---------|-------|
@@ -205,9 +205,9 @@ sudo ufw status
 | 80 | HTTP | Web UI |
 | 443 | HTTPS | Self-signed cert |
 | 853 | DNS-over-TLS | Required for Android |
-| 1883 | MQTT | Mosquitto broker |
-| 3001 | Bridge API | Moonlight/monitor control |
 | 5353 | mDNS | avahi-daemon |
+
+Additionally: port 53/udp allowed on `tailscale0` (Split DNS). Ports 80/443 bypass UFW (Docker). MQTT bound to `127.0.0.1`. Bridge API (3001) only reachable via nginx proxy.
 
 ### Android shows "Connected, no internet"
 
@@ -226,11 +226,32 @@ sudo dmesg | grep "UFW BLOCK" | tail -20
 
 This shows recent firewall blocks with source IP and port - useful for debugging.
 
-### Allow a port (LAN only)
+## Tailscale Issues
+
+### Can't reach hobbit.house remotely
+
+1. Is Tailscale connected on your phone? Check the Tailscale app.
+2. Is the subnet route approved? Tailscale admin → Machines → hobbit → routes
+3. Is Split DNS configured? Tailscale admin → DNS → `house` → `100.91.142.95`
+4. Test with Tailscale IP directly: `curl https://100.91.142.95/ -k`
+
+### HTTPS cert warnings on Tailscale FQDN
+
+Cert may be expired. Renew:
+```bash
+sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl/tailscale.crt --key-file /home/hobbit/hobbit/ssl/tailscale.key hobbit.tailf803eb.ts.net
+docker restart hobbit-webserver-1
+```
+
+### Tailscale not connecting
 
 ```bash
-sudo ufw allow from 192.168.0.0/24 to any port 3001
+sudo tailscale up         # Re-authenticate
+tailscale status          # Check status
+journalctl -u tailscaled  # Check logs
 ```
+
+See `docs/tailscale.md` for full Tailscale documentation.
 
 ## Logs
 

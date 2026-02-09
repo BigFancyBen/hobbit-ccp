@@ -6,6 +6,7 @@
   roles:
     - base        # mDNS, firewall, Docker, Node.js
     - security    # SSH hardening, unattended-upgrades
+    - tailscale   # WireGuard mesh VPN for remote access
     - dns         # Local DNS server (dnsmasq)
     - moonlight   # X11, Moonlight, pairing prep
     - zigbee      # Mosquitto, Zigbee2MQTT

@@ -73,6 +73,9 @@ function cleanupGamingSession() {
 // POST /launch-moonlight?app=Desktop  (use actual app name from Sunshine)
 app.post('/launch-moonlight', (req, res) => {
   const appName = req.query.app || 'Desktop';
+  if (!cachedApps.includes(appName)) {
+    return res.status(400).json({ error: 'Unknown app' });
+  }
 
   // Check if already running (look for X server which indicates gaming mode)
   exec('pgrep -x Xorg', (err) => {
@@ -683,6 +686,7 @@ app.post('/bluetooth/pair', (req, res) => {
 // POST /bluetooth/connect - connect to paired device
 app.post('/bluetooth/connect', (req, res) => {
   const { mac } = req.body;
+  if (!mac?.match(/^[A-F0-9:]+$/i)) return res.status(400).json({ error: 'Invalid MAC' });
   exec(`bluetoothctl connect ${mac}`, { timeout: 15000 }, (err, stdout, stderr) => {
     if (err && !stdout.includes('Connection successful')) {
       return res.status(500).json({ error: stderr || err.message });
@@ -694,6 +698,7 @@ app.post('/bluetooth/connect', (req, res) => {
 // POST /bluetooth/disconnect
 app.post('/bluetooth/disconnect', (req, res) => {
   const { mac } = req.body;
+  if (!mac?.match(/^[A-F0-9:]+$/i)) return res.status(400).json({ error: 'Invalid MAC' });
   exec(`bluetoothctl disconnect ${mac}`, (err) => {
     res.json({ status: 'disconnected' });
   });
@@ -702,6 +707,7 @@ app.post('/bluetooth/disconnect', (req, res) => {
 // DELETE /bluetooth/device/:mac - remove paired device
 app.delete('/bluetooth/device/:mac', (req, res) => {
   const mac = decodeURIComponent(req.params.mac);
+  if (!mac.match(/^[A-F0-9:]+$/i)) return res.status(400).json({ error: 'Invalid MAC' });
   exec(`bluetoothctl remove ${mac}`, (err) => {
     res.json({ status: 'removed' });
   });

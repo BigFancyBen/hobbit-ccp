@@ -54,10 +54,16 @@ nslookup hobbit.house
 dig hobbit.house @192.168.0.67 +short
 ```
 
+# Tailscale Split DNS
+
+When away from the LAN, Tailscale routes `*.house` queries to hobbit's dnsmasq. Configured in the Tailscale admin console:
+- Domain: `house`, Nameserver: `100.91.142.95`
+- UFW allows DNS on `tailscale0` (port 53/udp)
+
 # Configuration
 
 - Main config: `/etc/dnsmasq.d/local.conf`
-- Ansible role: `roles/dns/`
+- Ansible roles: `roles/dns/`, `roles/tailscale/`
 
 # Troubleshooting
 

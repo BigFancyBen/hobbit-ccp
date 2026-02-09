@@ -59,10 +59,18 @@ sudo /usr/local/bin/backup.sh
 ls -lh /home/hobbit/backups/
 ```
 
+## Tailscale
+
+```bash
+tailscale status                         # Connection status
+tailscale ping <peer>                    # Test peer connectivity
+sudo tailscale cert --cert-file ... ...  # Renew HTTPS cert
+```
+
 # Network Info
 
-| Host | IP |
-|------|-----|
-| Mini PC | 192.168.0.67 |
-| Gaming PC | 192.168.0.69 |
-| User | hobbit |
+| Host | IP | Tailscale IP |
+|------|-----|-------------|
+| Mini PC | 192.168.0.67 | 100.91.142.95 |
+| Gaming PC | 192.168.0.69 | — |
+| User | hobbit | — |

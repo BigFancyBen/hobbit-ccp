@@ -41,7 +41,6 @@
     - "80"    # HTTP
     - "443"   # HTTPS
     - "853"   # DNS-over-TLS (Android uses this)
-    - "3001"  # Bridge API
     - "5353"  # mDNS
     - "1883"  # MQTT
 

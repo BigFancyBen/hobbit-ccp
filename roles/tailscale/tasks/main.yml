@@ -1,0 +1,57 @@
+---
+- name: Add Tailscale GPG key
+  apt_key:
+    url: https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_distribution_release }}.noarmor.gpg
+    state: present
+
+- name: Add Tailscale repo
+  apt_repository:
+    repo: "deb https://pkgs.tailscale.com/stable/ubuntu {{ ansible_distribution_release }} main"
+    state: present
+
+- name: Install Tailscale
+  apt:
+    name: tailscale
+    state: present
+    update_cache: yes
+
+- name: Enable and start tailscaled
+  systemd:
+    name: tailscaled
+    enabled: yes
+    state: started
+
+- name: Enable IP forwarding for subnet routing
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_file: /etc/sysctl.d/99-tailscale.conf
+    reload: yes
+
+- name: Advertise LAN subnet via Tailscale
+  command: tailscale set --advertise-routes={{ lan_subnet }}
+  changed_when: false
+  failed_when: false
+
+- name: Allow DNS from Tailscale interface
+  ufw:
+    rule: allow
+    interface_in: tailscale0
+    to_port: "53"
+    proto: udp
+    comment: DNS from Tailscale
+
+- name: Check Tailscale status
+  command: tailscale status
+  register: tailscale_status
+  changed_when: false
+  failed_when: false
+
+- name: Print Tailscale auth instructions
+  debug:
+    msg: |
+      Tailscale is installed. If not yet authenticated, SSH in and run:
+        sudo tailscale up
+      Then click the auth URL, approve the device, and note the MagicDNS name.
+      Set tailscale_fqdn in group_vars/all.yml and re-deploy.
+  when: tailscale_status.rc != 0
