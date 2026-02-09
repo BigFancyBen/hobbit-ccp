@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTransition, animated, to } from '@react-spring/web';
-import { Button } from '@/components/ui/8bit/button';
+import { Button } from '@hobbit/ui/8bit/button';
 
 interface ConfirmDialogProps {
   open: boolean;

@@ -22,6 +22,7 @@ All services are restricted to the local subnet `192.168.0.0/24`.
 | 22 | SSH | Key-only authentication |
 | 53 | DNS | dnsmasq |
 | 80 | HTTP | Nginx web UI |
+| 443 | HTTPS | Nginx (self-signed cert) |
 | 853 | DNS-over-TLS | Required for Android |
 | 1883 | MQTT | Mosquitto broker |
 | 3001 | Bridge API | Moonlight/monitor control |
@@ -39,6 +40,7 @@ All services are restricted to the local subnet `192.168.0.0/24`.
     - "22"    # SSH
     - "53"    # DNS
     - "80"    # HTTP
+    - "443"   # HTTPS
     - "853"   # DNS-over-TLS (Android)
     - "3001"  # Bridge API
     - "5353"  # mDNS
@@ -102,12 +104,15 @@ server_tokens off;
 
 ### 5. Nginx Hostname Validation
 
-Requests must use a valid hostname (`hobbit`, `hobbit.local`, or `hobbit.house`). Requests with other Host headers are rejected.
+Requests must use a valid hostname (`hobbit`, `hobbit.local`, or `hobbit.house`). Requests with other Host headers are rejected on both HTTP and HTTPS.
 
 ```nginx
 # Reject requests with unknown Host headers
 server {
     listen 80 default_server;
+    listen 443 ssl default_server;
+    ssl_certificate /etc/nginx/ssl/hobbit.crt;
+    ssl_certificate_key /etc/nginx/ssl/hobbit.key;
     return 444;  # Close connection without response
 }
 ```
@@ -129,7 +134,7 @@ This prevents DNS rebinding attacks through the browser.
 
 | Feature | Decision | Reason |
 |---------|----------|--------|
-| HTTPS | Skip | Self-signed certs cause browser warnings. LAN-only traffic doesn't need encryption. |
+| HTTPS (public CA) | Skip | Self-signed cert used instead. LAN-only server can't get a real CA cert. Browser warnings are accepted for SilverBullet; the main web UI uses plain HTTP. |
 | MQTT authentication | Skip | Firewall blocks external access. Adds complexity for no benefit on LAN. |
 | Zigbee2MQTT frontend auth | Skip | Not natively supported. UFW is sufficient. |
 | fail2ban | Skip | With key-only SSH + LAN firewall, brute force is impossible. |
@@ -205,6 +210,7 @@ Internet
 │  │   :22    SSH (key-only)                         │    │
 │  │   :53    DNS                                    │    │
 │  │   :80    HTTP                                   │    │
+│  │   :443   HTTPS (self-signed)                    │    │
 │  │   :853   DNS-over-TLS                           │    │
 │  │   :1883  MQTT                                   │    │
 │  │   :3001  Bridge API                             │    │

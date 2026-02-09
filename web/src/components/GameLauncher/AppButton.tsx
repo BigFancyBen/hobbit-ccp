@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/8bit/button';
-import { Skeleton } from '@/components/ui/8bit/skeleton';
-import { Spinner } from '@/components/ui/8bit/spinner';
+import { Button } from '@hobbit/ui/8bit/button';
+import { Skeleton } from '@hobbit/ui/8bit/skeleton';
+import { Spinner } from '@hobbit/ui/8bit/spinner';
 
 interface AppButtonProps {
   appName: string;

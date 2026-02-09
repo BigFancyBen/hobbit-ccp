@@ -58,9 +58,22 @@
         - web
         - mosquitto
         - zigbee2mqtt
+        - space
+        - ssl
 
-    - name: Copy Docker Compose file
-      copy:
+    - name: Generate self-signed SSL certificate
+      command: >
+        openssl req -x509 -nodes -days 3650 -newkey rsa:2048
+        -keyout {{ hobbit_dir }}/ssl/hobbit.key
+        -out {{ hobbit_dir }}/ssl/hobbit.crt
+        -subj "/CN=hobbit.house"
+        -addext "subjectAltName=DNS:hobbit.house,DNS:hobbit,DNS:hobbit.local,IP:192.168.0.67"
+      args:
+        creates: "{{ hobbit_dir }}/ssl/hobbit.crt"
+      notify: Restart docker services
+
+    - name: Template Docker Compose file
+      template:
         src: ../files/docker-compose.yml
         dest: "{{ hobbit_dir }}/docker-compose.yml"
       notify: Restart docker services
@@ -111,6 +124,14 @@
       copy:
         src: ../web/dist/
         dest: "{{ hobbit_dir }}/web/"
+        owner: hobbit
+        group: hobbit
+      notify: Restart docker services
+
+    - name: Copy SilverBullet custom styles
+      copy:
+        src: ../files/silverbullet/STYLES.md
+        dest: "{{ hobbit_dir }}/space/STYLES.md"
         owner: hobbit
         group: hobbit
       notify: Restart docker services

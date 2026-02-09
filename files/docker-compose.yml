@@ -23,15 +23,27 @@ services:
     depends_on:
       - mqtt
 
+  # SilverBullet (markdown wiki)
+  silverbullet:
+    image: ghcr.io/silverbulletmd/silverbullet
+    restart: always
+    environment:
+      - SB_USER={{ sb_user }}
+      - SB_URL_PREFIX=/sb
+    volumes:
+      - ./space:/space
+
   # Frontend Web Server
   webserver:
     image: nginx:alpine
     restart: always
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./web:/usr/share/nginx/html:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

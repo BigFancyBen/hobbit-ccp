@@ -16,56 +16,50 @@ The Hobbit web UI is a React TypeScript application using the 8bitcn component l
 ## Project Structure
 
 ```
+packages/ui/                     # @hobbit/ui shared design system (workspace package)
+├── src/
+│   ├── 8bit/                    # 14 pixel-art 8bitcn components
+│   │   ├── button.tsx, card.tsx, dialog.tsx, tabs.tsx, badge.tsx,
+│   │   │   alert.tsx, skeleton.tsx, spinner.tsx, progress.tsx,
+│   │   │   health-bar.tsx, mana-bar.tsx, empty.tsx, toast.tsx, tooltip.tsx
+│   │   └── styles/retro.css     # Press Start 2P pixel font
+│   ├── base/                    # 9 shadcn base components
+│   ├── lib/utils.ts             # cn() utility (clsx + tailwind-merge)
+│   └── styles/
+│       ├── theme.css            # oklch Atari color variables
+│       └── retro.css            # Press Start 2P font face
+└── package.json
+
 web/
 ├── src/
 │   ├── components/
-│   │   ├── GameLauncher/       # Game launcher components
-│   │   │   ├── index.tsx       # Main launcher container
-│   │   │   ├── StatusBadge.tsx # Animated status indicator
-│   │   │   ├── AppButton.tsx   # Game launch button with skeleton
-│   │   │   ├── AppGrid.tsx     # Grid with skeleton loading
-│   │   │   └── ExitButton.tsx  # Exit gaming button
+│   │   ├── GameLauncher/        # Game launcher components
+│   │   │   ├── index.tsx        # Main launcher container
+│   │   │   ├── StatusBadge.tsx  # Animated status indicator
+│   │   │   ├── AppButton.tsx    # Game launch button with skeleton
+│   │   │   ├── AppGrid.tsx      # Grid with skeleton loading
+│   │   │   └── ExitButton.tsx   # Exit gaming button
 │   │   ├── ui/
-│   │   │   ├── 8bit/           # 8bitcn components (from registry)
-│   │   │   │   ├── button.tsx
-│   │   │   │   ├── card.tsx
-│   │   │   │   ├── dialog.tsx
-│   │   │   │   ├── tabs.tsx
-│   │   │   │   ├── badge.tsx
-│   │   │   │   ├── alert.tsx
-│   │   │   │   ├── skeleton.tsx
-│   │   │   │   ├── spinner.tsx
-│   │   │   │   ├── progress.tsx
-│   │   │   │   ├── health-bar.tsx
-│   │   │   │   ├── mana-bar.tsx
-│   │   │   │   ├── empty.tsx
-│   │   │   │   ├── toast.tsx
-│   │   │   │   ├── tooltip.tsx
-│   │   │   │   └── styles/
-│   │   │   │       └── retro.css
-│   │   │   ├── ConfirmDialog.tsx # Animated confirmation modal
-│   │   │   └── *.tsx           # Base shadcn components
-│   │   ├── SettingsModal.tsx   # Settings dialog (Stats + System tabs)
-│   │   ├── StatsTab.tsx        # System stats (CPU, GPU, RAM, disk, network)
-│   │   └── SystemTab.tsx       # Reboot + Bluetooth (RPG "save slots" UI)
+│   │   │   └── ConfirmDialog.tsx # Animated confirmation modal
+│   │   ├── SettingsModal.tsx    # Settings dialog (Stats + System tabs)
+│   │   ├── StatsTab.tsx         # System stats (CPU, GPU, RAM, disk, network)
+│   │   └── SystemTab.tsx        # Reboot + Bluetooth (RPG "save slots" UI)
 │   ├── hooks/
-│   │   ├── useSystemStats.ts  # Custom hook for bridge stats API
-│   │   └── useBluetooth.ts     # Custom hook for Bluetooth management
+│   │   ├── useSystemStats.ts   # Custom hook for bridge stats API
+│   │   └── useBluetooth.ts      # Custom hook for Bluetooth management
 │   ├── lib/
-│   │   ├── cache.ts            # Module-level cache for persistent data
-│   │   └── utils.ts            # shadcn utility functions
-│   ├── App.tsx                 # Main application
-│   ├── main.tsx                # Entry point with Toaster
-│   └── index.css               # Tailwind + Atari theme
-├── components.json             # shadcn/8bitcn configuration
-├── tsconfig.json               # TypeScript config
-├── vite.config.js              # Vite configuration
+│   │   └── cache.ts             # Module-level cache for persistent data
+│   ├── App.tsx                  # Main application
+│   ├── main.tsx                 # Entry point with Toaster
+│   └── index.css                # Tailwind imports + app styles
+├── tsconfig.json                # TypeScript config
+├── vite.config.js               # Vite configuration
 └── package.json
 ```
 
-## 8bitcn Component Library
+## 8bitcn Component Library (`@hobbit/ui`)
 
-We use the official 8bitcn registry for retro-styled components.
+Components live in a shared workspace package at `packages/ui/`, imported as `@hobbit/ui`. This is a source-level package (no build step) — the web app consumes TypeScript directly.
 
 ### Installed Components
 
@@ -84,42 +78,26 @@ We use the official 8bitcn registry for retro-styled components.
 | Mana Bar | Blue mana-style bar (RAM) |
 | Empty | Empty state placeholders |
 | Toast | Toast notifications |
-
-### Adding Components
-
-```bash
-# Add a single component
-npx shadcn@latest add @8bitcn/button
-
-# Add multiple components
-npx shadcn@latest add @8bitcn/dialog @8bitcn/tabs @8bitcn/card
-```
-
-### Registry Configuration
-
-The `components.json` configures the 8bitcn registry:
-
-```json
-{
-  "tsx": true,
-  "registries": {
-    "@8bitcn": "https://www.8bitcn.com/r/{name}.json"
-  }
-}
-```
+| Tooltip | Hover tooltips |
 
 ### Using Components
 
-Always import from the 8bit subdirectory for retro styling:
+Import 8bit components from `@hobbit/ui/8bit/` and base shadcn components from `@hobbit/ui/base/`:
 
 ```tsx
 // 8-bit styled versions
-import { Button } from '@/components/ui/8bit/button';
-import { Badge } from '@/components/ui/8bit/badge';
-import { Skeleton } from '@/components/ui/8bit/skeleton';
-import { Spinner } from '@/components/ui/8bit/spinner';
-import HealthBar from '@/components/ui/8bit/health-bar';
-import ManaBar from '@/components/ui/8bit/mana-bar';
+import { Button } from '@hobbit/ui/8bit/button';
+import { Badge } from '@hobbit/ui/8bit/badge';
+import { Skeleton } from '@hobbit/ui/8bit/skeleton';
+import { Spinner } from '@hobbit/ui/8bit/spinner';
+import HealthBar from '@hobbit/ui/8bit/health-bar';
+import ManaBar from '@hobbit/ui/8bit/mana-bar';
+
+// Base shadcn components
+import { DialogContent } from '@hobbit/ui/base/dialog';
+
+// Utility
+import { cn } from '@hobbit/ui/lib/utils';
 ```
 
 ### Font Styling
@@ -151,9 +129,9 @@ function MyComponent({ data, loading }: MyComponentProps) {
 ### Example: AppButton
 
 ```tsx
-import { Skeleton } from '@/components/ui/8bit/skeleton';
-import { Spinner } from '@/components/ui/8bit/spinner';
-import { Button } from '@/components/ui/8bit/button';
+import { Skeleton } from '@hobbit/ui/8bit/skeleton';
+import { Spinner } from '@hobbit/ui/8bit/spinner';
+import { Button } from '@hobbit/ui/8bit/button';
 
 interface AppButtonProps {
   appName: string;
@@ -180,9 +158,9 @@ function AppButton({ appName, loading, launching, onClick }: AppButtonProps) {
 Use 8bitcn gaming bars for system stats:
 
 ```tsx
-import HealthBar from '@/components/ui/8bit/health-bar';
-import ManaBar from '@/components/ui/8bit/mana-bar';
-import { Progress } from '@/components/ui/8bit/progress';
+import HealthBar from '@hobbit/ui/8bit/health-bar';
+import ManaBar from '@hobbit/ui/8bit/mana-bar';
+import { Progress } from '@hobbit/ui/8bit/progress';
 
 // CPU as health (red) - inverted: 100 - usage = remaining "health"
 <HealthBar value={100 - cpuUsage} className="h-4" />
@@ -199,7 +177,7 @@ import { Progress } from '@/components/ui/8bit/progress';
 Toast notifications use sonner with 8bitcn styling:
 
 ```tsx
-import { toast } from '@/components/ui/8bit/toast';
+import { toast } from '@hobbit/ui/8bit/toast';
 
 // Show a toast
 toast('Game launched!');
@@ -228,7 +206,7 @@ The UI uses a custom Atari-inspired color scheme with oklch colors.
 
 ### Theme Location
 
-Theme variables are defined in `src/index.css` with both light and dark variants.
+Theme variables are defined in `packages/ui/src/styles/theme.css` with both light and dark variants. The web app imports this via `web/src/index.css`.
 
 ## Mobile-First Design
 
@@ -436,8 +414,8 @@ config.default  // Balanced (general use)
 ### New Component
 
 1. Check if 8bitcn has the component: https://www.8bitcn.com/docs/components
-2. Install via registry: `npx shadcn@latest add @8bitcn/component-name`
-3. Import from `@/components/ui/8bit/component-name`
+2. Add the component to `packages/ui/src/8bit/` (or `packages/ui/src/base/` for base shadcn)
+3. Import from `@hobbit/ui/8bit/component-name`
 4. Add `loading?: boolean` prop for skeleton support if needed
 
 ### New Page/Section

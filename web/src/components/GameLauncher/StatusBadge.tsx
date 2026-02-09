@@ -1,5 +1,5 @@
-import { Badge } from '@/components/ui/8bit/badge';
-import { Skeleton } from '@/components/ui/8bit/skeleton';
+import { Badge } from '@hobbit/ui/8bit/badge';
+import { Skeleton } from '@hobbit/ui/8bit/skeleton';
 
 interface StatusBadgeProps {
   isGaming: boolean;

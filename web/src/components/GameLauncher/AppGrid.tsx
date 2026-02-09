@@ -1,4 +1,4 @@
-import { Empty, EmptyTitle, EmptyDescription } from '@/components/ui/8bit/empty';
+import { Empty, EmptyTitle, EmptyDescription } from '@hobbit/ui/8bit/empty';
 import { AppButton } from './AppButton';
 
 interface AppGridProps {

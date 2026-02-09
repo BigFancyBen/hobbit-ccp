@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/8bit/alert';
+import { Alert, AlertDescription } from '@hobbit/ui/8bit/alert';
 import { SettingsModal } from '@/components/SettingsModal';
 import { GameLauncher } from '@/components/GameLauncher';
-import { toast } from '@/components/ui/8bit/toast';
+import { toast } from '@hobbit/ui/8bit/toast';
 
 function App() {
   const [status, setStatus] = useState({ mode: 'idle', sunshineOnline: false });

@@ -42,8 +42,14 @@ There are no tests or linting configured.
 
 ## Key Directories
 
+- `packages/ui/` — `@hobbit/ui` shared design system (source-level, no build step)
+  - `src/8bit/` — 14 pixel-art 8bitcn components
+  - `src/base/` — 9 shadcn base components
+  - `src/lib/utils.ts` — `cn()` utility (clsx + tailwind-merge)
+  - `src/styles/` — `theme.css` (oklch Atari color vars), `retro.css` (Press Start 2P font)
 - `web/src/` — React 18 + TypeScript + Vite + Tailwind v4 frontend
 - `files/bridge.js` — Express backend (single file, ~700 lines), deployed to mini PC
+- `files/silverbullet/` — SilverBullet theme (STYLES.md deployed to space/)
 - `files/` — All config files deployed by Ansible (docker-compose, nginx, systemd, etc.)
 - `roles/` — Ansible roles (base, security, dns, moonlight, zigbee, webserver)
 - `playbooks/` — Ansible playbooks (setup.yml for first-time, deploy.yml for updates)
@@ -51,9 +57,9 @@ There are no tests or linting configured.
 
 ## Frontend Conventions
 
-**Component library**: 8bitcn (pixel-art themed, shadcn-based). Always import from `@/components/ui/8bit/`. These components extend ~6px outside their bounds — use `mx-2` on content containers and `overflow-x-hidden` on scroll containers to prevent clipping.
+**Component library**: 8bitcn (pixel-art themed, shadcn-based) in `@hobbit/ui`. Import from `@hobbit/ui/8bit/` (e.g., `import { Button } from '@hobbit/ui/8bit/button'`). Base shadcn components are at `@hobbit/ui/base/`. These components extend ~6px outside their bounds — use `mx-2` on content containers and `overflow-x-hidden` on scroll containers to prevent clipping.
 
-**Styling**: Tailwind v4 with a custom Atari oklch color theme defined in `web/src/index.css`. Mobile-first responsive design. Use `font="retro"` prop for Press Start 2P pixel font on 8bitcn components.
+**Styling**: Tailwind v4 with a custom Atari oklch color theme in `packages/ui/src/styles/theme.css` (imported by `web/src/index.css`). Mobile-first responsive design. Use `font="retro"` prop for Press Start 2P pixel font on 8bitcn components.
 
 **Animations**: react-spring. Use `useTransition` for enter/leave (modals, tabs), not imperative `useSpring`. Track `prevTabIndexRef` for directional tab slides. Reserve `api.set()`/`api.start()` for values computed dynamically at event time.
 
@@ -69,7 +75,7 @@ Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached gam
 
 ## Deployment Flow
 
-`deploy.sh` builds the web UI then runs `ansible-playbook playbooks/deploy.yml` which copies files to the mini PC at 192.168.0.67 (`hobbit_dir: /home/hobbit/hobbit`), runs `npm install` for the bridge, restarts Docker services and the bridge systemd unit, then verifies health.
+`deploy.sh` installs workspace dependencies, builds the web UI, then runs `ansible-playbook playbooks/deploy.yml` which copies files to the mini PC at 192.168.0.67 (`hobbit_dir: /home/hobbit/hobbit`), runs `npm install` for the bridge, restarts Docker services and the bridge systemd unit, then verifies health.
 
 The dev proxy in `web/vite.config.js` points to the real mini PC at `192.168.0.67`, so `npm run dev` talks to the live bridge.
 

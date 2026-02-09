@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useSystemStats } from '@/hooks/useSystemStats';
-import { Alert, AlertDescription } from '@/components/ui/8bit/alert';
-import { Button } from '@/components/ui/8bit/button';
-import { Card, CardHeader, CardContent } from '@/components/ui/8bit/card';
-import { Badge } from '@/components/ui/8bit/badge';
-import { Progress } from '@/components/ui/8bit/progress';
-import { Skeleton } from '@/components/ui/8bit/skeleton';
+import { Alert, AlertDescription } from '@hobbit/ui/8bit/alert';
+import { Button } from '@hobbit/ui/8bit/button';
+import { Card, CardHeader, CardContent } from '@hobbit/ui/8bit/card';
+import { Badge } from '@hobbit/ui/8bit/badge';
+import { Progress } from '@hobbit/ui/8bit/progress';
+import { Skeleton } from '@hobbit/ui/8bit/skeleton';
 
 function MonitorIcon() {
   return (

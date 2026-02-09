@@ -1,0 +1,24 @@
+{
+  "name": "@hobbit/ui",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./8bit/*": "./src/8bit/*.tsx",
+    "./base/*": "./src/base/*.tsx",
+    "./lib/utils": "./src/lib/utils.ts",
+    "./styles/*": "./src/styles/*"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "sonner": "^2.0.0"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.563.0",
+    "radix-ui": "^1.4.3",
+    "@radix-ui/react-progress": "^1.1.8",
+    "tailwind-merge": "^3.4.0"
+  }
+}

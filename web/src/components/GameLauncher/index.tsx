@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/8bit/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@hobbit/ui/8bit/card';
 import { StatusBadge } from './StatusBadge';
 import { AppGrid } from './AppGrid';
 import { ExitButton } from './ExitButton';

@@ -203,6 +203,7 @@ sudo ufw status
 | 22 | SSH | Key-only authentication |
 | 53 | DNS | dnsmasq |
 | 80 | HTTP | Web UI |
+| 443 | HTTPS | Self-signed cert |
 | 853 | DNS-over-TLS | Required for Android |
 | 1883 | MQTT | Mosquitto broker |
 | 3001 | Bridge API | Moonlight/monitor control |
@@ -241,6 +242,7 @@ journalctl -u hobbit-bridge -f
 ### View Docker logs
 ```bash
 docker compose logs -f webserver
+docker compose logs -f silverbullet
 docker compose logs -f zigbee2mqtt
 docker compose logs -f mqtt
 ```

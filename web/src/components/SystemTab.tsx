@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useBluetooth } from '@/hooks/useBluetooth';
-import { Button } from '@/components/ui/8bit/button';
-import { Spinner } from '@/components/ui/8bit/spinner';
-import { Skeleton } from '@/components/ui/8bit/skeleton';
+import { Button } from '@hobbit/ui/8bit/button';
+import { Spinner } from '@hobbit/ui/8bit/spinner';
+import { Skeleton } from '@hobbit/ui/8bit/skeleton';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 function StatusDot({ status }: { status: 'ready' | 'active' | 'synced' | 'offline' | 'scanning' }) {

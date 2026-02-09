@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTransition, animated } from '@react-spring/web';
-import { Button } from '@/components/ui/8bit/button';
+import { Button } from '@hobbit/ui/8bit/button';
 import { StatsTab } from './StatsTab';
 import { SystemTab } from './SystemTab';
 
