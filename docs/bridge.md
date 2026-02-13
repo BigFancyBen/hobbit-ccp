@@ -32,7 +32,7 @@ Some operations can't be done from Docker containers:
 │  - Gaming PC / Sunshine reachability                    │
 │  - Moonlight launch / exit                              │
 │  - Monitor control (HDMI/DPMS)                          │
-│  - Bluetooth management                                 │
+│  - Xbox Wireless Adapter controllers                     │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -218,15 +218,12 @@ Commands requiring root access need sudoers entries. Add to `roles/webserver/tas
 | `/monitor-off` | POST | Turn off display |
 | `/shutdown` | POST | Shutdown system |
 | `/reboot` | POST | Reboot system |
-| `/bluetooth/status` | GET | Paired devices + connection status |
-| `/bluetooth/scan` | POST | Start/stop device discovery |
-| `/bluetooth/discovered` | GET | Devices found during scan |
-| `/bluetooth/pair` | POST | Pair with device |
-| `/bluetooth/connect` | POST | Connect to paired device |
-| `/bluetooth/disconnect` | POST | Disconnect device |
-| `/bluetooth/device/:mac` | DELETE | Remove paired device |
+| `/controllers` | GET | Connected Xbox controllers + pairing state |
+| `/controllers/pair` | POST | Toggle adapter pairing mode |
 
-See `docs/bluetooth.md` for full Bluetooth documentation.
+See `docs/controllers.md` for full controller documentation.
+
+Bluetooth endpoints (`/bluetooth/*`) are still registered but disabled — see `docs/bluetooth.md` for reference.
 
 ## Security
 

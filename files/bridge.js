@@ -56,17 +56,8 @@ exec('sudo /usr/local/bin/hdmi-control.sh off', (err) => {
 function cleanupGamingSession() {
   console.log('Gaming session ended, cleaning up...');
   exec('sudo /usr/local/bin/hdmi-control.sh off');
-  // Disconnect all Bluetooth devices
-  exec('bluetoothctl devices Paired', (btErr, stdout) => {
-    if (!btErr && stdout.trim()) {
-      for (const line of stdout.trim().split('\n')) {
-        const match = line.match(/Device\s+([A-F0-9:]+)/i);
-        if (match) {
-          exec(`bluetoothctl disconnect ${match[1]}`);
-        }
-      }
-    }
-  });
+  // Xbox Wireless Adapter controllers don't need software disconnect —
+  // the adapter handles connection state in hardware
 }
 
 // Launch Moonlight streaming a specific app
@@ -530,7 +521,52 @@ app.get('/disk-stats', (req, res) => {
   res.json(diskStats || { used_gb: 0, total_gb: 0, usage_percent: 0 });
 });
 
-// Bluetooth controller management
+// Xbox Wireless Adapter — connected controllers
+// Only match devices from the xone driver (Xbox Wireless Adapter)
+let pairingActive = false;
+let pairingTimeout = null;
+
+app.get('/controllers', (req, res) => {
+  fs.readdir('/dev/input/by-id/', (err, files) => {
+    if (err) return res.json({ controllers: [], pairing: pairingActive });
+    const controllers = files
+      .filter(f => f.endsWith('-event-joystick') && /xbox|microsoft/i.test(f))
+      .map(f => ({
+        name: f.replace(/-event-joystick$/, '').replace(/^usb-/, '').replace(/_/g, ' ')
+      }));
+    res.json({ controllers, pairing: pairingActive });
+  });
+});
+
+// Toggle adapter pairing mode via xone sysfs interface
+app.post('/controllers/pair', (req, res) => {
+  const { enabled } = req.body;
+
+  if (enabled && !pairingActive) {
+    pairingActive = true;
+    pairingTimeout = setTimeout(() => {
+      exec('sudo /usr/local/bin/xone-pair.sh 0');
+      pairingActive = false;
+      pairingTimeout = null;
+    }, 30000);
+    exec('sudo /usr/local/bin/xone-pair.sh 1', (err) => {
+      if (err) console.error('xone-pair.sh:', err.message);
+    });
+    res.json({ status: 'pairing' });
+  } else if (!enabled && pairingActive) {
+    exec('sudo /usr/local/bin/xone-pair.sh 0');
+    pairingActive = false;
+    if (pairingTimeout) {
+      clearTimeout(pairingTimeout);
+      pairingTimeout = null;
+    }
+    res.json({ status: 'stopped' });
+  } else {
+    res.json({ status: enabled ? 'already pairing' : 'not pairing' });
+  }
+});
+
+// Bluetooth controller management (DISABLED — using Xbox Wireless Adapter)
 let scanProcess = null;
 let scanTimeout = null;
 let discoveredDevices = new Map();

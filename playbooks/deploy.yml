@@ -20,25 +20,27 @@
         mode: '0440'
         validate: 'visudo -cf %s'
 
-    - name: Install Bluetooth packages
-      apt:
-        name: bluez
-        state: present
-        update_cache: no
+    # DISABLED — using Xbox Wireless Adapter (xone driver handles controllers)
+    # - name: Install Bluetooth packages
+    #   apt:
+    #     name: bluez
+    #     state: present
+    #     update_cache: no
 
-    - name: Add hobbit to bluetooth and input groups
+    - name: Add hobbit to input group
       user:
         name: hobbit
-        groups: bluetooth,input
+        groups: input
         append: yes
 
-    - name: Allow hobbit to run bluetoothctl without password
-      lineinfile:
-        path: /etc/sudoers.d/hobbit-gaming
-        line: 'hobbit ALL=(ALL) NOPASSWD: /usr/bin/bluetoothctl'
-        create: yes
-        mode: '0440'
-        validate: 'visudo -cf %s'
+    # DISABLED — using Xbox Wireless Adapter
+    # - name: Allow hobbit to run bluetoothctl without password
+    #   lineinfile:
+    #     path: /etc/sudoers.d/hobbit-gaming
+    #     line: 'hobbit ALL=(ALL) NOPASSWD: /usr/bin/bluetoothctl'
+    #     create: yes
+    #     mode: '0440'
+    #     validate: 'visudo -cf %s'
 
     - name: Create hobbit directory
       file:
@@ -116,6 +118,20 @@
         src: ../files/hdmi-control.sh
         dest: /usr/local/bin/hdmi-control.sh
         mode: '0755'
+
+    - name: Copy xone pairing script
+      copy:
+        src: ../files/xone-pair.sh
+        dest: /usr/local/bin/xone-pair.sh
+        mode: '0755'
+
+    - name: Allow hobbit to run xone-pair without password
+      lineinfile:
+        path: /etc/sudoers.d/hobbit-gaming
+        line: 'hobbit ALL=(ALL) NOPASSWD: /usr/local/bin/xone-pair.sh'
+        create: yes
+        mode: '0440'
+        validate: 'visudo -cf %s'
 
     - name: Copy bridge.js
       copy:
