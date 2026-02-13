@@ -749,6 +749,169 @@ app.delete('/bluetooth/device/:mac', (req, res) => {
   });
 });
 
+// ============================================================
+// Zigbee Lights — MQTT-based control for livingroom group
+// ============================================================
+const mqtt = require('mqtt');
+
+const LIGHT_GROUP = 'livingroom';
+const MQTT_URL = 'mqtt://127.0.0.1:1883';
+const LIGHT_IDLE_TIMEOUT = 60000; // Disconnect MQTT after 60s idle
+
+let mqttClient = null;
+let lastLightsRequest = 0;
+let lightsIdleCheck = null;
+let groupMembers = []; // Array of { ieee, friendly_name }
+
+let lightsState = {
+  group: { state: 'OFF', brightness: 0 },
+  devices: {} // keyed by friendly_name: { state, brightness }
+};
+
+function startLightsMonitor() {
+  if (mqttClient) return;
+  console.log('Lights MQTT connecting...');
+
+  mqttClient = mqtt.connect(MQTT_URL);
+
+  mqttClient.on('connect', () => {
+    console.log('Lights MQTT connected');
+    // Subscribe to group state and bridge discovery topics
+    mqttClient.subscribe(`zigbee2mqtt/${LIGHT_GROUP}`, { qos: 0 });
+    mqttClient.subscribe('zigbee2mqtt/bridge/groups', { qos: 0 });
+    mqttClient.subscribe('zigbee2mqtt/bridge/devices', { qos: 0 });
+    // Request current groups/devices lists
+    mqttClient.publish('zigbee2mqtt/bridge/request/groups', '');
+    mqttClient.publish('zigbee2mqtt/bridge/request/devices', '');
+  });
+
+  let pendingGroups = null;
+  let pendingDevices = null;
+
+  function resolveMembers() {
+    if (!pendingGroups || !pendingDevices) return;
+    const group = pendingGroups.find(g => g.friendly_name === LIGHT_GROUP);
+    if (!group) return;
+
+    const ieeeSet = new Set(group.members.map(m => m.ieee_address));
+    groupMembers = pendingDevices
+      .filter(d => ieeeSet.has(d.ieee_address))
+      .map(d => ({ ieee: d.ieee_address, friendly_name: d.friendly_name }));
+
+    console.log('Light group members:', groupMembers.map(m => m.friendly_name));
+
+    // Subscribe to individual device topics
+    for (const member of groupMembers) {
+      mqttClient.subscribe(`zigbee2mqtt/${member.friendly_name}`, { qos: 0 });
+    }
+  }
+
+  mqttClient.on('message', (topic, payload) => {
+    let data;
+    try { data = JSON.parse(payload.toString()); } catch { return; }
+
+    if (topic === 'zigbee2mqtt/bridge/groups') {
+      pendingGroups = data;
+      resolveMembers();
+    } else if (topic === 'zigbee2mqtt/bridge/devices') {
+      pendingDevices = data;
+      resolveMembers();
+    } else if (topic === `zigbee2mqtt/${LIGHT_GROUP}`) {
+      if (data.state !== undefined) lightsState.group.state = data.state;
+      if (data.brightness !== undefined) lightsState.group.brightness = data.brightness;
+    } else {
+      // Individual device state
+      const deviceName = topic.replace('zigbee2mqtt/', '');
+      if (groupMembers.some(m => m.friendly_name === deviceName)) {
+        if (!lightsState.devices[deviceName]) {
+          lightsState.devices[deviceName] = { state: 'OFF', brightness: 0 };
+        }
+        if (data.state !== undefined) lightsState.devices[deviceName].state = data.state;
+        if (data.brightness !== undefined) lightsState.devices[deviceName].brightness = data.brightness;
+      }
+    }
+  });
+
+  mqttClient.on('error', (err) => {
+    console.error('Lights MQTT error:', err.message);
+  });
+
+  // Start idle checker
+  if (!lightsIdleCheck) {
+    lightsIdleCheck = setInterval(() => {
+      if (mqttClient && Date.now() - lastLightsRequest > LIGHT_IDLE_TIMEOUT) {
+        stopLightsMonitor();
+      }
+    }, 10000);
+  }
+}
+
+function stopLightsMonitor() {
+  if (!mqttClient) return;
+  console.log('Lights MQTT disconnecting (idle)...');
+  mqttClient.end();
+  mqttClient = null;
+  if (lightsIdleCheck) {
+    clearInterval(lightsIdleCheck);
+    lightsIdleCheck = null;
+  }
+}
+
+function touchLights() {
+  lastLightsRequest = Date.now();
+  startLightsMonitor();
+}
+
+// GET /lights — current state of group + individual lights
+app.get('/lights', (req, res) => {
+  touchLights();
+  const devices = groupMembers.map(m => ({
+    id: m.friendly_name,
+    name: m.friendly_name,
+    state: lightsState.devices[m.friendly_name]?.state || 'OFF',
+    brightness: lightsState.devices[m.friendly_name]?.brightness || 0,
+  }));
+  res.json({
+    connected: mqttClient?.connected || false,
+    group: {
+      name: LIGHT_GROUP,
+      state: lightsState.group.state,
+      brightness: lightsState.group.brightness,
+    },
+    devices,
+  });
+});
+
+// POST /lights/group/set — control group { state?, brightness? }
+app.post('/lights/group/set', (req, res) => {
+  touchLights();
+  if (!mqttClient?.connected) {
+    return res.status(503).json({ error: 'MQTT not connected' });
+  }
+  const payload = {};
+  if (req.body.state !== undefined) payload.state = req.body.state;
+  if (req.body.brightness !== undefined) payload.brightness = req.body.brightness;
+  mqttClient.publish(`zigbee2mqtt/${LIGHT_GROUP}/set`, JSON.stringify(payload));
+  res.json({ status: 'ok', payload });
+});
+
+// POST /lights/:id/set — control individual light { state?, brightness? }
+app.post('/lights/:id/set', (req, res) => {
+  touchLights();
+  if (!mqttClient?.connected) {
+    return res.status(503).json({ error: 'MQTT not connected' });
+  }
+  const id = req.params.id;
+  if (!groupMembers.some(m => m.friendly_name === id)) {
+    return res.status(400).json({ error: 'Unknown light' });
+  }
+  const payload = {};
+  if (req.body.state !== undefined) payload.state = req.body.state;
+  if (req.body.brightness !== undefined) payload.brightness = req.body.brightness;
+  mqttClient.publish(`zigbee2mqtt/${id}/set`, JSON.stringify(payload));
+  res.json({ status: 'ok', payload });
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Hobbit Bridge running on port ${PORT}`);

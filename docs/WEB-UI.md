@@ -18,12 +18,13 @@ The Hobbit web UI is a React TypeScript application using the 8bitcn component l
 ```
 packages/ui/                     # @hobbit/ui shared design system (workspace package)
 ├── src/
-│   ├── 8bit/                    # 14 pixel-art 8bitcn components
+│   ├── 8bit/                    # 16 pixel-art 8bitcn components
 │   │   ├── button.tsx, card.tsx, dialog.tsx, tabs.tsx, badge.tsx,
 │   │   │   alert.tsx, skeleton.tsx, spinner.tsx, progress.tsx,
-│   │   │   health-bar.tsx, mana-bar.tsx, empty.tsx, toast.tsx, tooltip.tsx
+│   │   │   health-bar.tsx, mana-bar.tsx, empty.tsx, toast.tsx, tooltip.tsx,
+│   │   │   slider.tsx, switch.tsx
 │   │   └── styles/retro.css     # Press Start 2P pixel font
-│   ├── base/                    # 9 shadcn base components
+│   ├── base/                    # 11 shadcn base components
 │   ├── lib/utils.ts             # cn() utility (clsx + tailwind-merge)
 │   └── styles/
 │       ├── theme.css            # oklch Atari color variables
@@ -41,15 +42,18 @@ web/
 │   │   │   └── ExitButton.tsx   # Exit gaming button
 │   │   ├── ui/
 │   │   │   └── ConfirmDialog.tsx # Animated confirmation modal
+│   │   ├── LightControls.tsx    # Living room lights (uses LightGroupCard)
+│   │   ├── LightGroupCard.tsx   # Reusable: toggle + dimmer slider + optional children
 │   │   ├── SettingsModal.tsx    # Settings dialog (Stats + System tabs)
 │   │   ├── StatsTab.tsx         # System stats (CPU, GPU, RAM, disk, network)
 │   │   └── SystemTab.tsx        # Reboot + Bluetooth (RPG "save slots" UI)
 │   ├── hooks/
 │   │   ├── useSystemStats.ts   # Custom hook for bridge stats API
-│   │   └── useBluetooth.ts      # Custom hook for Bluetooth management
+│   │   ├── useBluetooth.ts      # Custom hook for Bluetooth management
+│   │   └── useLights.ts         # Custom hook for Zigbee light control
 │   ├── lib/
 │   │   └── cache.ts             # Module-level cache for persistent data
-│   ├── App.tsx                  # Main application
+│   ├── App.tsx                  # Main application (LightControls → GameLauncher)
 │   ├── main.tsx                 # Entry point with Toaster
 │   └── index.css                # Tailwind imports + app styles
 ├── tsconfig.json                # TypeScript config
@@ -79,6 +83,8 @@ Components live in a shared workspace package at `packages/ui/`, imported as `@h
 | Empty | Empty state placeholders |
 | Toast | Toast notifications |
 | Tooltip | Hover tooltips |
+| Slider | Brightness/range input with pixel borders |
+| Switch | Toggle switches |
 
 ### Using Components
 
@@ -308,6 +314,32 @@ This avoids slow API responses since `moonlight list` requires spawning a virtua
 
 ## Custom Hooks
 
+### useLights
+
+Manages Zigbee light group state with optimistic updates:
+
+```tsx
+import { useLights } from '@/hooks/useLights';
+
+function Lights() {
+  const {
+    connected,     // MQTT connected to Zigbee2MQTT
+    group,         // { state, brightness, brightnessPercent }
+    devices,       // [{ id, name, state, brightness, brightnessPercent }]
+    loading,       // Initial fetch in progress
+    acting,        // API call in flight (show spinner/shimmer)
+    toggleGroup,   // Toggle all lights ON/OFF
+    toggleLight,   // Toggle individual light by id
+    setGroupBrightness, // Set group brightness (0-100 percent)
+  } = useLights();
+}
+```
+
+**Key patterns:**
+- **Quadratic brightness curve**: `toZigbee(percent) = (percent/100)² × 254` — lower slider values map to fine-grained dim control where perception is most sensitive
+- **Optimistic updates with cooldown**: All mutations optimistically update local state and set `ignoreUntil = Date.now() + 3000` to suppress poll overwrites while MQTT propagates
+- **Acting state**: Tracks in-flight API calls via a ref counter, exposed as `acting` boolean for shimmer/spinner UI feedback
+
 ### useSystemStats
 
 Fetches system metrics from the bridge API:
@@ -408,6 +440,48 @@ config.default  // Balanced (general use)
 ### Reusable Components
 
 - `ConfirmDialog` - Animated confirmation modal at `@/components/ui/ConfirmDialog`
+- `LightGroupCard` - Toggle + dimmer card for Zigbee light groups at `@/components/LightGroupCard`
+
+### LightGroupCard
+
+A reusable card for any dimmable light group. Header section has a muted background with the group name, toggle switch, and brightness slider, separated from children by a 6px pixel-art border matching the card's outer style.
+
+```tsx
+import { LightGroupCard } from '@/components/LightGroupCard';
+
+// Standalone (no children) — just a dimmer card
+<LightGroupCard
+  name="Bedroom"
+  on={bedroomOn}
+  brightnessPercent={bedroomBrightness}
+  disabled={!connected}
+  acting={acting}
+  onToggle={toggleBedroom}
+  onBrightness={setBedroomBrightness}
+/>
+
+// With individual device switches below
+<LightGroupCard
+  name="Living Room"
+  on={groupOn}
+  brightnessPercent={group.brightnessPercent}
+  disabled={!connected}
+  acting={acting}
+  onToggle={toggleGroup}
+  onBrightness={setGroupBrightness}
+>
+  {devices.map(d => (
+    <div key={d.id} className="flex items-center justify-between">
+      <span className="text-xs">{d.name}</span>
+      <Switch checked={d.state === 'ON'} onCheckedChange={() => toggle(d.id)} />
+    </div>
+  ))}
+</LightGroupCard>
+```
+
+**Props**: `name`, `on`, `brightnessPercent` (0-100), `disabled`, `acting` (shimmer), `onToggle`, `onBrightness(percent)`, `children?`
+
+The slider manages its own local drag state internally — consumers just provide `brightnessPercent` and `onBrightness`.
 
 ## Adding New Features
 

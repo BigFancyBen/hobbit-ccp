@@ -44,8 +44,8 @@ There are no tests or linting configured.
 ## Key Directories
 
 - `packages/ui/` — `@hobbit/ui` shared design system (source-level, no build step)
-  - `src/8bit/` — 14 pixel-art 8bitcn components
-  - `src/base/` — 9 shadcn base components
+  - `src/8bit/` — 16 pixel-art 8bitcn components (incl. slider, switch)
+  - `src/base/` — 11 shadcn base components (incl. slider, switch)
   - `src/lib/utils.ts` — `cn()` utility (clsx + tailwind-merge)
   - `src/styles/` — `theme.css` (oklch Atari color vars), `retro.css` (Press Start 2P font)
 - `web/src/` — React 18 + TypeScript + Vite + Tailwind v4 frontend
@@ -66,13 +66,17 @@ There are no tests or linting configured.
 
 **Module-level caching** (`web/src/lib/cache.ts`): Simple Map-based cache outside React lifecycle. Initialize `useState` from cache to prevent skeleton flash on remount. Update cache on successful fetch.
 
-**Data fetching**: Custom hooks (`useSystemStats`, `useBluetooth`) poll the bridge API at intervals. Frontend only polls when the browser tab is visible (`document.visibilitychange`). The bridge uses a "lazy monitoring" pattern — expensive background work (stats collection, Sunshine reachability checks) only runs when recently requested and auto-stops after 30s idle.
+**Data fetching**: Custom hooks (`useSystemStats`, `useBluetooth`, `useLights`) poll the bridge API at intervals. Frontend only polls when the browser tab is visible (`document.visibilitychange`). The bridge uses a "lazy monitoring" pattern — expensive background work (stats collection, Sunshine reachability checks, MQTT connections) only runs when recently requested and auto-stops after 30s idle.
+
+**Optimistic updates with cooldown**: Hooks that mutate server state (e.g., `useLights`) use optimistic updates paired with an `ignoreUntil` ref that suppresses poll overwrites for 3 seconds after user actions. This prevents stale server state from snapping the UI back before MQTT/Zigbee confirms the change.
+
+**Reusable components**: `LightGroupCard` (`web/src/components/LightGroupCard.tsx`) — a card with a toggle switch, dimmer slider, and optional children for individual device controls. Used for Zigbee light groups. The slider uses local state during drag (`onValueChange`) and commits on release (`onValueCommit`). Brightness uses a quadratic curve (`percent² × 254`) so the slider spends more range on dim values where perceived brightness changes the most.
 
 ## Bridge API
 
 All endpoints are under `/api/control/` in production (Nginx proxy strips the prefix). In the bridge code, routes are registered at root (`/health`, `/status`, `/cpu-stats`, etc.).
 
-Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached game list), `/launch-moonlight?app=X`, `/exit-gaming`, `/cpu-stats`, `/gpu-stats`, `/ram-stats`, `/disk-stats`, `/net-stats`, `/monitor-on`, `/monitor-off`, `/reboot`, `/bluetooth/*`.
+Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached game list), `/launch-moonlight?app=X`, `/exit-gaming`, `/cpu-stats`, `/gpu-stats`, `/ram-stats`, `/disk-stats`, `/net-stats`, `/monitor-on`, `/monitor-off`, `/reboot`, `/lights` (Zigbee group state), `/lights/group/set`, `/lights/:id/set`, `/bluetooth/*`.
 
 ## Deployment Flow
 

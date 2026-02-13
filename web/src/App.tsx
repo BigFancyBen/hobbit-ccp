@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from '@hobbit/ui/8bit/alert';
 import { SettingsModal } from '@/components/SettingsModal';
 import { GameLauncher } from '@/components/GameLauncher';
+import { LightControls } from '@/components/LightControls';
 import { toast } from '@hobbit/ui/8bit/toast';
 
 function App() {
@@ -125,16 +126,21 @@ function App() {
           </Alert>
         )}
 
+        {/* Light Controls */}
+        <LightControls />
+
         {/* Game Launcher */}
-        <GameLauncher
-          status={status}
-          apps={apps}
-          loading={loading}
-          initialLoading={initialLoading}
-          offline={!status.sunshineOnline}
-          onLaunchApp={launchApp}
-          onExitGaming={exitGaming}
-        />
+        <div className="mt-4">
+          <GameLauncher
+            status={status}
+            apps={apps}
+            loading={loading}
+            initialLoading={initialLoading}
+            offline={!status.sunshineOnline}
+            onLaunchApp={launchApp}
+            onExitGaming={exitGaming}
+          />
+        </div>
       </div>
     </div>
   );

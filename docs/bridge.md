@@ -220,10 +220,25 @@ Commands requiring root access need sudoers entries. Add to `roles/webserver/tas
 | `/reboot` | POST | Reboot system |
 | `/controllers` | GET | Connected Xbox controllers + pairing state |
 | `/controllers/pair` | POST | Toggle adapter pairing mode |
+| `/lights` | GET | Zigbee light group + individual states |
+| `/lights/group/set` | POST | Set group state/brightness `{ state?, brightness? }` |
+| `/lights/:id/set` | POST | Set individual light state/brightness |
 
 See `docs/controllers.md` for full controller documentation.
 
 Bluetooth endpoints (`/bluetooth/*`) are still registered but disabled — see `docs/bluetooth.md` for reference.
+
+## MQTT Integration
+
+The bridge connects to the local Mosquitto MQTT broker (`mqtt://127.0.0.1:1883`) to control Zigbee lights via Zigbee2MQTT.
+
+**Lazy connection**: MQTT only connects when the `/lights` endpoint is first requested, and auto-disconnects after 60 seconds of no requests. This follows the same touch/idle pattern used for stats and Sunshine monitoring.
+
+**Auto-discovery**: On connect, the bridge subscribes to `zigbee2mqtt/bridge/groups` and `zigbee2mqtt/bridge/devices`. It cross-references the `livingroom` group's IEEE addresses with device friendly names to discover group members, then subscribes to each individual device topic.
+
+**State caching**: Group and individual device states (on/off, brightness 0-254) are cached from MQTT messages and returned via `GET /lights`.
+
+**Control flow**: `POST /lights/group/set` and `POST /lights/:id/set` publish JSON payloads to the appropriate `zigbee2mqtt/<target>/set` topics. Individual light IDs are validated against discovered group members.
 
 ## Security
 

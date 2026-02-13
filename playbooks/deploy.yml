@@ -107,11 +107,23 @@
         dest: "{{ hobbit_dir }}/mosquitto/mosquitto.conf"
       notify: Restart docker services
 
-    - name: Copy Zigbee2MQTT config
+    - name: Copy Zigbee2MQTT config (initial only)
       template:
         src: ../files/zigbee2mqtt.yaml.j2
         dest: "{{ hobbit_dir }}/zigbee2mqtt/configuration.yaml"
+        force: no
       notify: Restart docker services
+
+    - name: Backup Zigbee2MQTT state
+      copy:
+        src: "{{ hobbit_dir }}/zigbee2mqtt/{{ item }}"
+        dest: "{{ hobbit_dir }}/zigbee2mqtt/{{ item }}.backup"
+        remote_src: yes
+        force: yes
+      loop:
+        - configuration.yaml
+        - database.db
+      failed_when: false
 
     - name: Copy HDMI control script
       copy:
