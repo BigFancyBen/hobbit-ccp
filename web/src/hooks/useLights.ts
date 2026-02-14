@@ -47,7 +47,9 @@ function toZigbee(percent: number) {
 
 export function useLights(refreshInterval = 5000) {
   const cached = getCache<LightsData>(CACHE_KEY);
-  const [data, setData] = useState<LightsData | null>(cached);
+  const [data, setData] = useState<LightsData | null>(
+    cached ? { ...cached, connected: true } : null
+  );
   const [loading, setLoading] = useState(!cached);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // After a user action, ignore poll results briefly so optimistic state isn't overwritten

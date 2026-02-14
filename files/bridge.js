@@ -727,8 +727,9 @@ function ensureMqttConnected(timeoutMs = 5000) {
 }
 
 // GET /lights — current state of group + individual lights
-app.get('/lights', (req, res) => {
+app.get('/lights', async (req, res) => {
   touchLights();
+  try { await ensureMqttConnected(2000); } catch {}
   // Aggregate capabilities across all group members
   const capabilities = { color: false, color_temp: false, color_temp_min: 150, color_temp_max: 500 };
   for (const m of groupMembers) {
