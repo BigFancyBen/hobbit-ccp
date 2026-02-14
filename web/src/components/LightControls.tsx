@@ -8,7 +8,7 @@ import { useLights } from '@/hooks/useLights';
 
 export function LightControls() {
   const {
-    connected,
+    reconnecting,
     capabilities,
     group,
     devices,
@@ -49,7 +49,7 @@ export function LightControls() {
         name="Living Room"
         on={groupOn}
         brightnessPercent={group?.brightnessPercent ?? 0}
-        disabled={!connected}
+        reconnecting={reconnecting}
         acting={acting}
         onToggle={toggleGroup}
         onBrightness={setGroupBrightness}
@@ -63,7 +63,6 @@ export function LightControls() {
                 <Switch
                   checked={device.state === 'ON'}
                   onCheckedChange={() => toggleLight(device.id)}
-                  disabled={!connected}
                 />
               </div>
             ))}

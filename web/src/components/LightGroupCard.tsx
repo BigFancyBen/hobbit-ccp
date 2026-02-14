@@ -26,7 +26,7 @@ interface LightGroupCardProps {
   name: string;
   on: boolean;
   brightnessPercent: number;
-  disabled?: boolean;
+  reconnecting?: boolean;
   acting?: boolean;
   onToggle: () => void;
   onBrightness: (percent: number) => void;
@@ -38,7 +38,7 @@ export function LightGroupCard({
   name,
   on,
   brightnessPercent,
-  disabled,
+  reconnecting,
   acting,
   onToggle,
   onBrightness,
@@ -62,13 +62,19 @@ export function LightGroupCard({
       <CardHeader className={children ? 'pb-3 border-b-6 border-foreground dark:border-ring' : ''}>
         <div className={`bg-muted/50 rounded-md px-3 py-3 ${acting ? 'animate-shimmer' : ''}`}>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm">{name}</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm">{name}</CardTitle>
+              {reconnecting && (
+                <span className="text-[10px] text-muted-foreground animate-pulse">
+                  Connecting...
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               {onColorClick && (
                 <button
                   onClick={onColorClick}
-                  disabled={disabled}
-                  className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors touch-manipulation active:scale-95 disabled:opacity-50"
+                  className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors touch-manipulation active:scale-95"
                 >
                   <PaletteIcon />
                 </button>
@@ -76,7 +82,6 @@ export function LightGroupCard({
               <Switch
                 checked={on}
                 onCheckedChange={onToggle}
-                disabled={disabled}
               />
             </div>
           </div>
@@ -87,7 +92,6 @@ export function LightGroupCard({
               max={100}
               step={1}
               trackBg={on ? 'bg-yellow-400' : 'bg-muted-foreground/40'}
-              disabled={disabled}
               onValueChange={(val: number[]) => {
                 dragging.current = true;
                 setSliderValue(val[0]);

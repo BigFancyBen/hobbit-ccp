@@ -882,6 +882,25 @@ function touchLights() {
   startLightsMonitor();
 }
 
+// Wait for MQTT to be connected (or timeout). Used by POST handlers so the
+// first request after sleep doesn't fail with "MQTT not connected".
+function ensureMqttConnected(timeoutMs = 5000) {
+  if (mqttClient?.connected) return Promise.resolve();
+  startLightsMonitor();
+  return new Promise((resolve, reject) => {
+    if (!mqttClient) return reject(new Error('MQTT client unavailable'));
+    const timeout = setTimeout(() => {
+      mqttClient.removeListener('connect', onConnect);
+      reject(new Error('MQTT connection timeout'));
+    }, timeoutMs);
+    function onConnect() {
+      clearTimeout(timeout);
+      resolve();
+    }
+    mqttClient.once('connect', onConnect);
+  });
+}
+
 // GET /lights — current state of group + individual lights
 app.get('/lights', (req, res) => {
   touchLights();
@@ -924,9 +943,11 @@ app.get('/lights', (req, res) => {
 });
 
 // POST /lights/group/set — control group { state?, brightness?, color?, color_temp? }
-app.post('/lights/group/set', (req, res) => {
+app.post('/lights/group/set', async (req, res) => {
   touchLights();
-  if (!mqttClient?.connected) {
+  try {
+    await ensureMqttConnected();
+  } catch {
     return res.status(503).json({ error: 'MQTT not connected' });
   }
   const payload = {};
@@ -939,9 +960,11 @@ app.post('/lights/group/set', (req, res) => {
 });
 
 // POST /lights/:id/set — control individual light { state?, brightness?, color?, color_temp? }
-app.post('/lights/:id/set', (req, res) => {
+app.post('/lights/:id/set', async (req, res) => {
   touchLights();
-  if (!mqttClient?.connected) {
+  try {
+    await ensureMqttConnected();
+  } catch {
     return res.status(503).json({ error: 'MQTT not connected' });
   }
   const id = req.params.id;

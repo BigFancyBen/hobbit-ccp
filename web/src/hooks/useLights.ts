@@ -96,6 +96,7 @@ export function useLights(refreshInterval = 5000) {
 
   const toggleGroup = useCallback(async () => {
     if (!data) return;
+    const prevData = data;
     const newState = data.group.state === 'ON' ? 'OFF' : 'ON';
     ignoreUntil.current = Date.now() + 3000;
     // Optimistic update — also flip every individual device
@@ -106,11 +107,14 @@ export function useLights(refreshInterval = 5000) {
     } : prev);
     inflight.current++; setActing(true);
     try {
-      await fetch(`${API}/lights/group/set`, {
+      const res = await fetch(`${API}/lights/group/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: newState }),
       });
+      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); }
+    } catch {
+      ignoreUntil.current = 0; setData(prevData);
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
@@ -118,6 +122,7 @@ export function useLights(refreshInterval = 5000) {
 
   const toggleLight = useCallback(async (id: string) => {
     if (!data) return;
+    const prevData = data;
     const device = data.devices.find(d => d.id === id);
     if (!device) return;
     const newState = device.state === 'ON' ? 'OFF' : 'ON';
@@ -134,17 +139,21 @@ export function useLights(refreshInterval = 5000) {
     });
     inflight.current++; setActing(true);
     try {
-      await fetch(`${API}/lights/${encodeURIComponent(id)}/set`, {
+      const res = await fetch(`${API}/lights/${encodeURIComponent(id)}/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: newState }),
       });
+      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); }
+    } catch {
+      ignoreUntil.current = 0; setData(prevData);
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
   }, [data]);
 
   const setGroupBrightness = useCallback(async (percent: number) => {
+    const prevData = data;
     const zigbee = toZigbee(percent);
     ignoreUntil.current = Date.now() + 3000;
     // Optimistic update — brightness only, don't toggle state
@@ -155,25 +164,31 @@ export function useLights(refreshInterval = 5000) {
     } : prev);
     inflight.current++; setActing(true);
     try {
-      await fetch(`${API}/lights/group/set`, {
+      const res = await fetch(`${API}/lights/group/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brightness: zigbee }),
       });
+      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); }
+    } catch {
+      ignoreUntil.current = 0; setData(prevData);
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
-  }, []);
+  }, [data]);
 
   const setGroupColor = useCallback(async (hex: string) => {
     ignoreUntil.current = Date.now() + 3000;
     inflight.current++; setActing(true);
     try {
-      await fetch(`${API}/lights/group/set`, {
+      const res = await fetch(`${API}/lights/group/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ color: { hex } }),
       });
+      if (!res.ok) ignoreUntil.current = 0;
+    } catch {
+      ignoreUntil.current = 0;
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
@@ -183,11 +198,14 @@ export function useLights(refreshInterval = 5000) {
     ignoreUntil.current = Date.now() + 3000;
     inflight.current++; setActing(true);
     try {
-      await fetch(`${API}/lights/group/set`, {
+      const res = await fetch(`${API}/lights/group/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ color_temp: mireds }),
       });
+      if (!res.ok) ignoreUntil.current = 0;
+    } catch {
+      ignoreUntil.current = 0;
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
@@ -195,6 +213,7 @@ export function useLights(refreshInterval = 5000) {
 
   return {
     connected: data?.connected ?? false,
+    reconnecting: !loading && data !== null && !data.connected,
     capabilities: data?.capabilities ?? { color: false, color_temp: false, color_temp_min: 150, color_temp_max: 500 },
     group: data?.group ? {
       ...data.group,
