@@ -4,16 +4,34 @@ import { getCache, setCache } from '@/lib/cache';
 const CACHE_KEY = 'lights';
 const API = '/api/control';
 
+interface DeviceSupports {
+  color: boolean;
+  color_temp: boolean;
+  color_temp_min: number;
+  color_temp_max: number;
+}
+
+export interface GroupCapabilities {
+  color: boolean;
+  color_temp: boolean;
+  color_temp_min: number;
+  color_temp_max: number;
+}
+
 interface LightDevice {
   id: string;
   name: string;
   state: string;
   brightness: number;
+  color: { x: number; y: number } | null;
+  color_temp: number | null;
+  supports: DeviceSupports;
 }
 
 interface LightsData {
   connected: boolean;
-  group: { name: string; state: string; brightness: number };
+  capabilities: GroupCapabilities;
+  group: { name: string; state: string; brightness: number; color: { x: number; y: number } | null; color_temp: number | null };
   devices: LightDevice[];
 }
 
@@ -147,8 +165,37 @@ export function useLights(refreshInterval = 5000) {
     }
   }, []);
 
+  const setGroupColor = useCallback(async (hex: string) => {
+    ignoreUntil.current = Date.now() + 3000;
+    inflight.current++; setActing(true);
+    try {
+      await fetch(`${API}/lights/group/set`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ color: { hex } }),
+      });
+    } finally {
+      if (--inflight.current === 0) setActing(false);
+    }
+  }, []);
+
+  const setGroupColorTemp = useCallback(async (mireds: number) => {
+    ignoreUntil.current = Date.now() + 3000;
+    inflight.current++; setActing(true);
+    try {
+      await fetch(`${API}/lights/group/set`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ color_temp: mireds }),
+      });
+    } finally {
+      if (--inflight.current === 0) setActing(false);
+    }
+  }, []);
+
   return {
     connected: data?.connected ?? false,
+    capabilities: data?.capabilities ?? { color: false, color_temp: false, color_temp_min: 150, color_temp_max: 500 },
     group: data?.group ? {
       ...data.group,
       brightnessPercent: toPercent(data.group.brightness),
@@ -162,5 +209,7 @@ export function useLights(refreshInterval = 5000) {
     toggleGroup,
     toggleLight,
     setGroupBrightness,
+    setGroupColor,
+    setGroupColorTemp,
   };
 }

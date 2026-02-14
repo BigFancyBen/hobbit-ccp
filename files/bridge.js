@@ -796,7 +796,23 @@ function startLightsMonitor() {
     const ieeeSet = new Set(group.members.map(m => m.ieee_address));
     groupMembers = pendingDevices
       .filter(d => ieeeSet.has(d.ieee_address))
-      .map(d => ({ ieee: d.ieee_address, friendly_name: d.friendly_name }));
+      .map(d => {
+        // Extract color capabilities from device definition
+        const supports = { color: false, color_temp: false, color_temp_min: 150, color_temp_max: 500 };
+        const exposes = d.definition?.exposes || [];
+        for (const expose of exposes) {
+          const features = expose.features || [];
+          for (const f of features) {
+            if (f.name === 'color_xy' || f.name === 'color_hs') supports.color = true;
+            if (f.name === 'color_temp') {
+              supports.color_temp = true;
+              if (f.value_min !== undefined) supports.color_temp_min = f.value_min;
+              if (f.value_max !== undefined) supports.color_temp_max = f.value_max;
+            }
+          }
+        }
+        return { ieee: d.ieee_address, friendly_name: d.friendly_name, supports };
+      });
 
     console.log('Light group members:', groupMembers.map(m => m.friendly_name));
 
@@ -819,6 +835,8 @@ function startLightsMonitor() {
     } else if (topic === `zigbee2mqtt/${LIGHT_GROUP}`) {
       if (data.state !== undefined) lightsState.group.state = data.state;
       if (data.brightness !== undefined) lightsState.group.brightness = data.brightness;
+      if (data.color !== undefined) lightsState.group.color = data.color;
+      if (data.color_temp !== undefined) lightsState.group.color_temp = data.color_temp;
     } else {
       // Individual device state
       const deviceName = topic.replace('zigbee2mqtt/', '');
@@ -828,6 +846,8 @@ function startLightsMonitor() {
         }
         if (data.state !== undefined) lightsState.devices[deviceName].state = data.state;
         if (data.brightness !== undefined) lightsState.devices[deviceName].brightness = data.brightness;
+        if (data.color !== undefined) lightsState.devices[deviceName].color = data.color;
+        if (data.color_temp !== undefined) lightsState.devices[deviceName].color_temp = data.color_temp;
       }
     }
   });
@@ -865,24 +885,45 @@ function touchLights() {
 // GET /lights — current state of group + individual lights
 app.get('/lights', (req, res) => {
   touchLights();
+  // Aggregate capabilities across all group members
+  const capabilities = { color: false, color_temp: false, color_temp_min: 500, color_temp_max: 150 };
+  for (const m of groupMembers) {
+    if (m.supports.color) capabilities.color = true;
+    if (m.supports.color_temp) {
+      capabilities.color_temp = true;
+      capabilities.color_temp_min = Math.min(capabilities.color_temp_min, m.supports.color_temp_min);
+      capabilities.color_temp_max = Math.max(capabilities.color_temp_max, m.supports.color_temp_max);
+    }
+  }
+  // Reset to defaults if no color_temp devices found
+  if (!capabilities.color_temp) {
+    capabilities.color_temp_min = 150;
+    capabilities.color_temp_max = 500;
+  }
   const devices = groupMembers.map(m => ({
     id: m.friendly_name,
     name: m.friendly_name,
     state: lightsState.devices[m.friendly_name]?.state || 'OFF',
     brightness: lightsState.devices[m.friendly_name]?.brightness || 0,
+    color: lightsState.devices[m.friendly_name]?.color || null,
+    color_temp: lightsState.devices[m.friendly_name]?.color_temp || null,
+    supports: m.supports,
   }));
   res.json({
     connected: mqttClient?.connected || false,
+    capabilities,
     group: {
       name: LIGHT_GROUP,
       state: lightsState.group.state,
       brightness: lightsState.group.brightness,
+      color: lightsState.group.color || null,
+      color_temp: lightsState.group.color_temp || null,
     },
     devices,
   });
 });
 
-// POST /lights/group/set — control group { state?, brightness? }
+// POST /lights/group/set — control group { state?, brightness?, color?, color_temp? }
 app.post('/lights/group/set', (req, res) => {
   touchLights();
   if (!mqttClient?.connected) {
@@ -891,11 +932,13 @@ app.post('/lights/group/set', (req, res) => {
   const payload = {};
   if (req.body.state !== undefined) payload.state = req.body.state;
   if (req.body.brightness !== undefined) payload.brightness = req.body.brightness;
+  if (req.body.color !== undefined) payload.color = req.body.color;
+  if (req.body.color_temp !== undefined) payload.color_temp = req.body.color_temp;
   mqttClient.publish(`zigbee2mqtt/${LIGHT_GROUP}/set`, JSON.stringify(payload));
   res.json({ status: 'ok', payload });
 });
 
-// POST /lights/:id/set — control individual light { state?, brightness? }
+// POST /lights/:id/set — control individual light { state?, brightness?, color?, color_temp? }
 app.post('/lights/:id/set', (req, res) => {
   touchLights();
   if (!mqttClient?.connected) {
@@ -908,6 +951,8 @@ app.post('/lights/:id/set', (req, res) => {
   const payload = {};
   if (req.body.state !== undefined) payload.state = req.body.state;
   if (req.body.brightness !== undefined) payload.brightness = req.body.brightness;
+  if (req.body.color !== undefined) payload.color = req.body.color;
+  if (req.body.color_temp !== undefined) payload.color_temp = req.body.color_temp;
   mqttClient.publish(`zigbee2mqtt/${id}/set`, JSON.stringify(payload));
   res.json({ status: 'ok', payload });
 });

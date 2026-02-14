@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@hobbit/ui/8bit/card';
 import { Skeleton } from '@hobbit/ui/8bit/skeleton';
 import { Switch } from '@hobbit/ui/8bit/switch';
 import { LightGroupCard } from '@/components/LightGroupCard';
+import { ColorPickerModal } from '@/components/ColorPickerModal';
 import { useLights } from '@/hooks/useLights';
 
 export function LightControls() {
   const {
     connected,
+    capabilities,
     group,
     devices,
     loading,
@@ -14,7 +17,12 @@ export function LightControls() {
     toggleGroup,
     toggleLight,
     setGroupBrightness,
+    setGroupColor,
+    setGroupColorTemp,
   } = useLights();
+
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const hasColorControls = capabilities.color || capabilities.color_temp;
 
   if (loading) {
     return (
@@ -36,29 +44,41 @@ export function LightControls() {
   const groupOn = group?.state === 'ON';
 
   return (
-    <LightGroupCard
-      name="Living Room"
-      on={groupOn}
-      brightnessPercent={group?.brightnessPercent ?? 0}
-      disabled={!connected}
-      acting={acting}
-      onToggle={toggleGroup}
-      onBrightness={setGroupBrightness}
-    >
-      {devices.length > 0 && (
-        <div className="space-y-3">
-          {devices.map(device => (
-            <div key={device.id} className="flex items-center justify-between">
-              <span className="text-xs">{device.name}</span>
-              <Switch
-                checked={device.state === 'ON'}
-                onCheckedChange={() => toggleLight(device.id)}
-                disabled={!connected}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-    </LightGroupCard>
+    <>
+      <LightGroupCard
+        name="Living Room"
+        on={groupOn}
+        brightnessPercent={group?.brightnessPercent ?? 0}
+        disabled={!connected}
+        acting={acting}
+        onToggle={toggleGroup}
+        onBrightness={setGroupBrightness}
+        onColorClick={hasColorControls ? () => setColorPickerOpen(true) : undefined}
+      >
+        {devices.length > 0 && (
+          <div className="space-y-3">
+            {devices.map(device => (
+              <div key={device.id} className="flex items-center justify-between">
+                <span className="text-xs">{device.name}</span>
+                <Switch
+                  checked={device.state === 'ON'}
+                  onCheckedChange={() => toggleLight(device.id)}
+                  disabled={!connected}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </LightGroupCard>
+
+      <ColorPickerModal
+        open={colorPickerOpen}
+        onClose={() => setColorPickerOpen(false)}
+        capabilities={capabilities}
+        currentColorTemp={group?.color_temp ?? null}
+        onColorChange={setGroupColor}
+        onColorTempChange={setGroupColorTemp}
+      />
+    </>
   );
 }

@@ -3,6 +3,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@hobbit/ui/8bit/card';
 import { Switch } from '@hobbit/ui/8bit/switch';
 import { Slider } from '@hobbit/ui/8bit/slider';
 
+function PaletteIcon() {
+  // Pixel-art style: 16x16 grid, 4 color swatches in a 2x2 block
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      shapeRendering="crispEdges"
+    >
+      <rect x="1" y="1" width="6" height="6" fill="#ef4444" />
+      <rect x="9" y="1" width="6" height="6" fill="#3b82f6" />
+      <rect x="1" y="9" width="6" height="6" fill="#22c55e" />
+      <rect x="9" y="9" width="6" height="6" fill="#eab308" />
+    </svg>
+  );
+}
+
 interface LightGroupCardProps {
   name: string;
   on: boolean;
@@ -11,6 +30,7 @@ interface LightGroupCardProps {
   acting?: boolean;
   onToggle: () => void;
   onBrightness: (percent: number) => void;
+  onColorClick?: () => void;
   children?: ReactNode;
 }
 
@@ -22,6 +42,7 @@ export function LightGroupCard({
   acting,
   onToggle,
   onBrightness,
+  onColorClick,
   children,
 }: LightGroupCardProps) {
   // Local slider state so it moves during drag (controlled Radix slider
@@ -42,11 +63,22 @@ export function LightGroupCard({
         <div className={`bg-muted/50 rounded-md px-3 py-3 ${acting ? 'animate-shimmer' : ''}`}>
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm">{name}</CardTitle>
-            <Switch
-              checked={on}
-              onCheckedChange={onToggle}
-              disabled={disabled}
-            />
+            <div className="flex items-center gap-2">
+              {onColorClick && (
+                <button
+                  onClick={onColorClick}
+                  disabled={disabled}
+                  className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors touch-manipulation active:scale-95 disabled:opacity-50"
+                >
+                  <PaletteIcon />
+                </button>
+              )}
+              <Switch
+                checked={on}
+                onCheckedChange={onToggle}
+                disabled={disabled}
+              />
+            </div>
           </div>
           <div className="mt-3">
             <Slider
