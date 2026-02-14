@@ -14,32 +14,6 @@ function App() {
 
   const API = '/api/control';
 
-  useEffect(() => {
-    const init = async () => {
-      await Promise.all([checkStatus(), fetchApps()]);
-      setInitialLoading(false);
-    };
-    init();
-
-    // Only poll when tab is visible
-    let interval: ReturnType<typeof setInterval> | null = setInterval(checkStatus, 5000);
-
-    const handleVisibility = () => {
-      if (document.hidden) {
-        if (interval) { clearInterval(interval); interval = null; }
-      } else {
-        checkStatus(); // Immediate check on refocus
-        if (!interval) interval = setInterval(checkStatus, 5000);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      if (interval) clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, []);
-
   const checkStatus = async () => {
     try {
       const res = await fetch(`${API}/status`);
@@ -65,6 +39,32 @@ function App() {
       setApps(['Desktop']);
     }
   };
+
+  useEffect(() => {
+    const init = async () => {
+      await Promise.all([checkStatus(), fetchApps()]);
+      setInitialLoading(false);
+    };
+    init();
+
+    // Only poll when tab is visible
+    let interval: ReturnType<typeof setInterval> | null = setInterval(checkStatus, 5000);
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+      } else {
+        checkStatus(); // Immediate check on refocus
+        if (!interval) interval = setInterval(checkStatus, 5000);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
 
   const launchApp = async (appName: string) => {
     setLoading(appName);
