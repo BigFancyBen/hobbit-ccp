@@ -61,7 +61,7 @@ sudo modprobe xone-dongle
 |------|---------|
 | `files/bridge.js` | `/controllers` and `/controllers/pair` endpoints |
 | `files/xone-pair.sh` | Toggles xone adapter pairing via sysfs |
-| `web/src/hooks/useControllers.ts` | React hook (read-only) |
+| `web/src/hooks/useControllers.ts` | React hook (has `startPairing`/`stopPairing` mutations) |
 | `web/src/components/SystemTab.tsx` | Controller UI (save slots) |
 | `roles/moonlight/tasks/main.yml` | xone driver installation |
 | `playbooks/deploy.yml` | User group membership |

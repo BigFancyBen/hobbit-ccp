@@ -3,7 +3,9 @@ name: bluetooth
 description: Manage Bluetooth controllers on the Hobbit mini PC. Use for pairing game controllers, troubleshooting connection issues, or adding new Bluetooth functionality.
 ---
 
-# Bluetooth Controller Management
+> **LEGACY** — Bluetooth has been replaced by Xbox Wireless Adapter. See the `controllers` skill for the current controller setup.
+
+# Bluetooth Controller Management (Legacy)
 
 Bluetooth controllers connect to the Hobbit mini PC and input is passed through Moonlight to the gaming PC. See `docs/bluetooth.md` for full documentation.
 

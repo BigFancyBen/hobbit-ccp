@@ -179,7 +179,7 @@ const { cpu, gpu, ram, disk, network, myValue, loading, error } = useSystemStats
 />
 ```
 
-### Step 6: Deploy
+### Step 5: Deploy
 
 ```bash
 ./deploy.sh

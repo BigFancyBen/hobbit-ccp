@@ -46,10 +46,11 @@ web/
 │   │   ├── LightGroupCard.tsx   # Reusable: toggle + dimmer slider + optional children
 │   │   ├── SettingsModal.tsx    # Settings dialog (Stats + System tabs)
 │   │   ├── StatsTab.tsx         # System stats (CPU, GPU, RAM, disk, network)
-│   │   └── SystemTab.tsx        # Reboot + Bluetooth (RPG "save slots" UI)
+│   │   └── SystemTab.tsx        # Reboot + Controllers (RPG "save slots" UI)
 │   ├── hooks/
 │   │   ├── useSystemStats.ts   # Custom hook for bridge stats API
-│   │   ├── useBluetooth.ts      # Custom hook for Bluetooth management
+│   │   ├── useControllers.ts    # Custom hook for Xbox Wireless Adapter controllers
+│   │   ├── useBluetooth.ts      # Legacy Bluetooth hook (disabled)
 │   │   └── useLights.ts         # Custom hook for Zigbee light control
 │   ├── lib/
 │   │   └── cache.ts             # Module-level cache for persistent data
@@ -108,9 +109,14 @@ import { cn } from '@hobbit/ui/lib/utils';
 
 ### Font Styling
 
-The `retro` class applies the Press Start 2P pixel font:
+8bitcn components use the `font="retro"` prop for the Press Start 2P pixel font. For raw HTML elements, use `className="retro"`:
 
 ```tsx
+// 8bitcn components — use the font prop
+<Badge font="retro">Pixel Text</Badge>
+<Button font="retro">Click Me</Button>
+
+// Raw HTML elements — use className
 <h1 className="retro">Pixel Text</h1>
 ```
 
@@ -302,6 +308,11 @@ The bridge service (`/api/control/`) provides these endpoints:
 | `/reboot` | POST | Reboot the mini PC |
 | `/shutdown` | POST | Shutdown the mini PC |
 | `/health` | GET | Health check |
+| `/controllers` | GET | Connected Xbox controllers + pairing state |
+| `/controllers/pair` | POST | Toggle adapter pairing mode |
+| `/lights` | GET | Zigbee light group + individual states + capabilities |
+| `/lights/group/set` | POST | Set group state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
+| `/lights/:id/set` | POST | Set individual light state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
 
 ### App List Caching
 
@@ -324,13 +335,17 @@ import { useLights } from '@/hooks/useLights';
 function Lights() {
   const {
     connected,     // MQTT connected to Zigbee2MQTT
+    reconnecting,  // MQTT reconnecting after idle
     group,         // { state, brightness, brightnessPercent }
     devices,       // [{ id, name, state, brightness, brightnessPercent }]
+    capabilities,  // { color: boolean, color_temp: boolean, color_temp_range?: [min, max] }
     loading,       // Initial fetch in progress
     acting,        // API call in flight (show spinner/shimmer)
     toggleGroup,   // Toggle all lights ON/OFF
     toggleLight,   // Toggle individual light by id
     setGroupBrightness, // Set group brightness (0-100 percent)
+    setGroupColor,      // Set group color `{ hex: string }`
+    setGroupColorTemp,  // Set group color temp (mireds)
   } = useLights();
 }
 ```
@@ -454,21 +469,21 @@ import { LightGroupCard } from '@/components/LightGroupCard';
   name="Bedroom"
   on={bedroomOn}
   brightnessPercent={bedroomBrightness}
-  disabled={!connected}
   acting={acting}
   onToggle={toggleBedroom}
   onBrightness={setBedroomBrightness}
 />
 
-// With individual device switches below
+// With color picker + reconnecting state + individual device switches
 <LightGroupCard
   name="Living Room"
   on={groupOn}
   brightnessPercent={group.brightnessPercent}
-  disabled={!connected}
   acting={acting}
+  reconnecting={reconnecting}
   onToggle={toggleGroup}
   onBrightness={setGroupBrightness}
+  onColorClick={() => setColorPickerOpen(true)}
 >
   {devices.map(d => (
     <div key={d.id} className="flex items-center justify-between">
@@ -479,7 +494,7 @@ import { LightGroupCard } from '@/components/LightGroupCard';
 </LightGroupCard>
 ```
 
-**Props**: `name`, `on`, `brightnessPercent` (0-100), `disabled`, `acting` (shimmer), `onToggle`, `onBrightness(percent)`, `children?`
+**Props**: `name`, `on`, `brightnessPercent` (0-100), `acting` (shimmer), `reconnecting` (pulsing label), `onToggle`, `onBrightness(percent)`, `onColorClick?` (renders palette icon), `children?`
 
 The slider manages its own local drag state internally — consumers just provide `brightnessPercent` and `onBrightness`.
 

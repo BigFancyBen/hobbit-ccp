@@ -221,8 +221,8 @@ Commands requiring root access need sudoers entries. Add to `roles/webserver/tas
 | `/controllers` | GET | Connected Xbox controllers + pairing state |
 | `/controllers/pair` | POST | Toggle adapter pairing mode |
 | `/lights` | GET | Zigbee light group + individual states |
-| `/lights/group/set` | POST | Set group state/brightness `{ state?, brightness? }` |
-| `/lights/:id/set` | POST | Set individual light state/brightness |
+| `/lights/group/set` | POST | Set group state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
+| `/lights/:id/set` | POST | Set individual light state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
 
 See `docs/controllers.md` for full controller documentation.
 

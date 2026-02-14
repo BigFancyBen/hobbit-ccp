@@ -61,8 +61,8 @@ className="h-14 touch-manipulation active:scale-95 transition-transform"
 ## 4. Component Best Practices Checklist
 
 ### Required for ALL components:
-- [ ] Use 8bitcn components from `@/components/ui/8bit/`
-- [ ] Add `retro` class for pixel font where appropriate
+- [ ] Use 8bitcn components from `@hobbit/ui/8bit/`
+- [ ] Use `font="retro"` prop on 8bitcn components for pixel font where appropriate
 - [ ] Use TypeScript interfaces for all props
 - [ ] Mobile-first responsive design (`sm:` breakpoints)
 
@@ -102,9 +102,9 @@ className="h-14 touch-manipulation active:scale-95 transition-transform"
 1. Create file in appropriate location
 2. Import from 8bitcn:
    ```tsx
-   import { Button } from '@/components/ui/8bit/button';
-   import { Skeleton } from '@/components/ui/8bit/skeleton';
-   import { Spinner } from '@/components/ui/8bit/spinner';
+   import { Button } from '@hobbit/ui/8bit/button';
+   import { Skeleton } from '@hobbit/ui/8bit/skeleton';
+   import { Spinner } from '@hobbit/ui/8bit/spinner';
    ```
 
 3. Define TypeScript interface with loading prop if needed:
@@ -126,10 +126,10 @@ className="h-14 touch-manipulation active:scale-95 transition-transform"
 
 ```tsx
 import { useState } from 'react';
-import { Button } from '@/components/ui/8bit/button';
-import { Skeleton } from '@/components/ui/8bit/skeleton';
-import { Spinner } from '@/components/ui/8bit/spinner';
-import { Badge } from '@/components/ui/8bit/badge';
+import { Button } from '@hobbit/ui/8bit/button';
+import { Skeleton } from '@hobbit/ui/8bit/skeleton';
+import { Spinner } from '@hobbit/ui/8bit/spinner';
+import { Badge } from '@hobbit/ui/8bit/badge';
 
 interface GameCardProps {
   name?: string;
