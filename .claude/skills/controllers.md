@@ -67,6 +67,3 @@ sudo modprobe xone-dongle
 | `playbooks/deploy.yml` | User group membership |
 | `docs/controllers.md` | Full documentation |
 
-## Previous Bluetooth Setup
-
-Bluetooth code is preserved but disabled. See `.claude/skills/bluetooth.md` and `docs/bluetooth.md` for reference.

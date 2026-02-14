@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { lockScroll, unlockScroll } from '@/lib/scroll-lock';
 import { createPortal } from 'react-dom';
 import { useTransition, animated, to } from '@react-spring/web';
 import { Button } from '@hobbit/ui/8bit/button';
@@ -27,13 +28,9 @@ export function ConfirmDialog({
   // Lock body scroll when modal is open
   useEffect(() => {
     if (open) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      lockScroll();
+      return () => unlockScroll();
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [open]);
 
   const transitions = useTransition(open, {

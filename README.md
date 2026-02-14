@@ -127,7 +127,6 @@ minipc-setup/
 │   ├── SECURITY.md           # Security hardening guide
 │   ├── TROUBLESHOOTING.md    # Common issues and fixes
 │   ├── WEB-UI.md             # Web UI development guide
-│   ├── bluetooth.md          # Bluetooth controller support
 │   └── bridge.md             # Host bridge service docs
 └── web/                      # React TypeScript SPA (8bitcn)
 ```
@@ -195,5 +194,4 @@ ssh hobbit@192.168.0.67 'systemctl status hobbit-backup.timer'
 - [Security Hardening](docs/SECURITY.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Web UI Development](docs/WEB-UI.md)
-- [Bluetooth Controllers](docs/bluetooth.md)
 - [Bridge Service](docs/bridge.md)

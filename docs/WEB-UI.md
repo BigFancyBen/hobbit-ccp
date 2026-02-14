@@ -50,10 +50,10 @@ web/
 │   ├── hooks/
 │   │   ├── useSystemStats.ts   # Custom hook for bridge stats API
 │   │   ├── useControllers.ts    # Custom hook for Xbox Wireless Adapter controllers
-│   │   ├── useBluetooth.ts      # Legacy Bluetooth hook (disabled)
 │   │   └── useLights.ts         # Custom hook for Zigbee light control
 │   ├── lib/
-│   │   └── cache.ts             # Module-level cache for persistent data
+│   │   ├── cache.ts             # Module-level cache for persistent data
+│   │   └── scroll-lock.ts       # Ref-counted body scroll lock for modals
 │   ├── App.tsx                  # Main application (LightControls → GameLauncher)
 │   ├── main.tsx                 # Entry point with Toaster
 │   └── index.css                # Tailwind imports + app styles

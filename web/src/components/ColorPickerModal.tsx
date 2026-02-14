@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { lockScroll, unlockScroll } from '@/lib/scroll-lock';
 import { createPortal } from 'react-dom';
 import { useTransition, animated, to } from '@react-spring/web';
 import { HexColorPicker } from 'react-colorful';
@@ -73,11 +74,9 @@ export function ColorPickerModal({
   // Lock body scroll
   useEffect(() => {
     if (open) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      lockScroll();
+      return () => unlockScroll();
     }
-    return () => { document.body.style.overflow = ''; };
   }, [open]);
 
   const transitions = useTransition(open, {

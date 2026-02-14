@@ -126,7 +126,6 @@ This prevents DNS rebinding attacks through the browser.
 
 All bridge endpoints that pass user input to shell commands validate inputs:
 - **`/launch-moonlight?app=`**: App name validated against `cachedApps` allowlist (prevents command injection)
-- **`/bluetooth/*`**: MAC addresses validated against `/^[A-F0-9:]+$/i` regex on all endpoints (pair, connect, disconnect, remove)
 
 ### 7. MQTT Bound to Localhost
 

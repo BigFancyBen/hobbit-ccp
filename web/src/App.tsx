@@ -47,7 +47,8 @@ function App() {
         setStatus(await res.json());
         setError(null);
       }
-    } catch {
+    } catch (err) {
+      console.error('Status check failed:', err);
       setError('Cannot connect to server');
     }
   };
@@ -59,7 +60,8 @@ function App() {
         const data = await res.json();
         setApps(data.apps || ['Desktop']);
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to fetch apps:', err);
       setApps(['Desktop']);
     }
   };
@@ -78,7 +80,8 @@ function App() {
         setError(errorMsg);
         toast(errorMsg);
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to launch app:', err);
       setError('Failed to connect');
       toast('Failed to connect');
     }
@@ -91,7 +94,8 @@ function App() {
     try {
       await fetch(`${API}/exit-gaming`, { method: 'POST' });
       toast('Gaming mode stopped');
-    } catch {
+    } catch (err) {
+      console.error('Failed to exit gaming:', err);
       setError('Failed to exit');
       toast('Failed to exit');
     }

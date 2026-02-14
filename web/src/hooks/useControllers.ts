@@ -22,7 +22,8 @@ export function useControllers(refreshInterval = 3000) {
       setCache(CACHE_KEY, data.controllers);
       setPairing(data.pairing);
       setLoading(false);
-    } catch {
+    } catch (err) {
+      console.error('Failed to fetch controllers:', err);
       setLoading(false);
     }
   }, []);

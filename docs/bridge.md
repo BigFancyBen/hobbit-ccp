@@ -226,8 +226,6 @@ Commands requiring root access need sudoers entries. Add to `roles/webserver/tas
 
 See `docs/controllers.md` for full controller documentation.
 
-Bluetooth endpoints (`/bluetooth/*`) are still registered but disabled — see `docs/bluetooth.md` for reference.
-
 ## MQTT Integration
 
 The bridge connects to the local Mosquitto MQTT broker (`mqtt://127.0.0.1:1883`) to control Zigbee lights via Zigbee2MQTT.
@@ -245,7 +243,6 @@ The bridge connects to the local Mosquitto MQTT broker (`mqtt://127.0.0.1:1883`)
 - **Port 3001 is not directly exposed** — no UFW rule exists. All access goes through nginx's `/api/control/` proxy (Docker network). This prevents Tailscale peers or LAN devices from bypassing nginx.
 - **Input validation**: All endpoints that pass user input to shell commands validate the input:
   - `/launch-moonlight?app=`: Validated against `cachedApps` allowlist
-  - `/bluetooth/*`: MAC addresses validated against `/^[A-F0-9:]+$/i` regex
 
 ## Debugging
 

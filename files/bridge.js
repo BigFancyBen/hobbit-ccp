@@ -568,189 +568,6 @@ app.post('/controllers/pair', (req, res) => {
   }
 });
 
-// Bluetooth controller management (DISABLED — using Xbox Wireless Adapter)
-let scanProcess = null;
-let scanTimeout = null;
-let discoveredDevices = new Map();
-
-// GET /bluetooth/status - adapter status + paired devices
-app.get('/bluetooth/status', (req, res) => {
-  exec('bluetoothctl devices Paired', { timeout: 5000 }, (err, stdout) => {
-    const devices = [];
-    if (!err && stdout.trim()) {
-      for (const line of stdout.trim().split('\n')) {
-        const match = line.match(/Device\s+([A-F0-9:]+)\s+(.+)/i);
-        if (match) devices.push({ mac: match[1], name: match[2] });
-      }
-    }
-    if (devices.length === 0) {
-      return res.json({ devices: [], scanning: !!scanProcess });
-    }
-    // Get connection status for each device
-    Promise.all(devices.map(d =>
-      new Promise(resolve => {
-        exec(`bluetoothctl info ${d.mac}`, (e, out) => {
-          d.connected = out?.includes('Connected: yes') ?? false;
-          d.trusted = out?.includes('Trusted: yes') ?? false;
-          resolve(d);
-        });
-      })
-    )).then(devs => res.json({ devices: devs, scanning: !!scanProcess }));
-  });
-});
-
-// POST /bluetooth/scan - start/stop discovery
-app.post('/bluetooth/scan', (req, res) => {
-  const { enabled } = req.body;
-
-  if (enabled && !scanProcess) {
-    discoveredDevices.clear();
-
-    // Use script mode for proper scanning
-    scanProcess = spawn('bluetoothctl', ['--agent=NoInputNoOutput'], {
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    let buffer = '';
-    scanProcess.stdout.on('data', (data) => {
-      buffer += data.toString();
-      // Parse device discoveries - handle multiple formats
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || ''; // Keep incomplete line
-
-      for (const line of lines) {
-        // Match: [NEW] Device XX:XX:XX:XX:XX:XX Name
-        // Also match: Device XX:XX:XX:XX:XX:XX Name
-        const newMatch = line.match(/(?:\[NEW\]\s+)?Device\s+([A-F0-9:]{17})\s+(.+)/i);
-        if (newMatch && !discoveredDevices.has(newMatch[1])) {
-          discoveredDevices.set(newMatch[1], { mac: newMatch[1], name: newMatch[2].trim() });
-        }
-      }
-    });
-
-    scanProcess.on('close', () => {
-      scanProcess = null;
-      if (scanTimeout) {
-        clearTimeout(scanTimeout);
-        scanTimeout = null;
-      }
-    });
-
-    scanProcess.on('error', (err) => {
-      console.error('Bluetooth scan error:', err.message);
-      scanProcess = null;
-    });
-
-    // Set up agent and start scanning
-    scanProcess.stdin.write('power on\n');
-    scanProcess.stdin.write('agent on\n');
-    scanProcess.stdin.write('default-agent\n');
-    scanProcess.stdin.write('scan on\n');
-
-    // Auto-stop after 30 seconds
-    scanTimeout = setTimeout(() => {
-      if (scanProcess) {
-        scanProcess.stdin.write('scan off\n');
-        setTimeout(() => {
-          if (scanProcess) {
-            scanProcess.stdin.write('quit\n');
-          }
-        }, 500);
-      }
-    }, 30000);
-
-    res.json({ status: 'scanning' });
-  } else if (!enabled && scanProcess) {
-    scanProcess.stdin.write('scan off\n');
-    setTimeout(() => {
-      if (scanProcess) {
-        scanProcess.stdin.write('quit\n');
-      }
-    }, 500);
-    if (scanTimeout) {
-      clearTimeout(scanTimeout);
-      scanTimeout = null;
-    }
-    res.json({ status: 'stopped' });
-  } else {
-    res.json({ status: enabled ? 'already scanning' : 'not scanning' });
-  }
-});
-
-// GET /bluetooth/discovered - devices found during scan
-app.get('/bluetooth/discovered', (req, res) => {
-  res.json({
-    scanning: !!scanProcess,
-    devices: Array.from(discoveredDevices.values())
-  });
-});
-
-// POST /bluetooth/pair - pair with device
-app.post('/bluetooth/pair', (req, res) => {
-  const { mac } = req.body;
-  if (!mac?.match(/^[A-F0-9:]+$/i)) return res.status(400).json({ error: 'Invalid MAC' });
-
-  // Use expect-like approach for pairing
-  const pairProcess = spawn('bluetoothctl', ['--agent=NoInputNoOutput'], {
-    stdio: ['pipe', 'pipe', 'pipe']
-  });
-
-  let output = '';
-  pairProcess.stdout.on('data', (data) => { output += data.toString(); });
-  pairProcess.stderr.on('data', (data) => { output += data.toString(); });
-
-  pairProcess.stdin.write('agent on\n');
-  pairProcess.stdin.write('default-agent\n');
-  pairProcess.stdin.write(`pair ${mac}\n`);
-
-  setTimeout(() => {
-    pairProcess.stdin.write(`trust ${mac}\n`);
-    setTimeout(() => {
-      pairProcess.stdin.write('quit\n');
-    }, 1000);
-  }, 5000);
-
-  pairProcess.on('close', () => {
-    if (output.includes('Pairing successful') || output.includes('already paired')) {
-      res.json({ status: 'paired' });
-    } else if (output.includes('Failed')) {
-      res.status(500).json({ error: 'Pairing failed', details: output });
-    } else {
-      res.json({ status: 'paired' });
-    }
-  });
-});
-
-// POST /bluetooth/connect - connect to paired device
-app.post('/bluetooth/connect', (req, res) => {
-  const { mac } = req.body;
-  if (!mac?.match(/^[A-F0-9:]+$/i)) return res.status(400).json({ error: 'Invalid MAC' });
-  exec(`bluetoothctl connect ${mac}`, { timeout: 15000 }, (err, stdout, stderr) => {
-    if (err && !stdout.includes('Connection successful')) {
-      return res.status(500).json({ error: stderr || err.message });
-    }
-    res.json({ status: 'connected' });
-  });
-});
-
-// POST /bluetooth/disconnect
-app.post('/bluetooth/disconnect', (req, res) => {
-  const { mac } = req.body;
-  if (!mac?.match(/^[A-F0-9:]+$/i)) return res.status(400).json({ error: 'Invalid MAC' });
-  exec(`bluetoothctl disconnect ${mac}`, (err) => {
-    res.json({ status: 'disconnected' });
-  });
-});
-
-// DELETE /bluetooth/device/:mac - remove paired device
-app.delete('/bluetooth/device/:mac', (req, res) => {
-  const mac = decodeURIComponent(req.params.mac);
-  if (!mac.match(/^[A-F0-9:]+$/i)) return res.status(400).json({ error: 'Invalid MAC' });
-  exec(`bluetoothctl remove ${mac}`, (err) => {
-    res.json({ status: 'removed' });
-  });
-});
-
 // ============================================================
 // Zigbee Lights — MQTT-based control for livingroom group
 // ============================================================
@@ -764,6 +581,7 @@ let mqttClient = null;
 let lastLightsRequest = 0;
 let lightsIdleCheck = null;
 let groupMembers = []; // Array of { ieee, friendly_name }
+let subscribedTopics = new Set();
 
 let lightsState = {
   group: { state: 'OFF', brightness: 0 },
@@ -818,9 +636,13 @@ function startLightsMonitor() {
 
     console.log('Light group members:', groupMembers.map(m => m.friendly_name));
 
-    // Subscribe to individual device topics
+    // Subscribe to individual device topics (skip already-subscribed)
     for (const member of groupMembers) {
-      mqttClient.subscribe(`zigbee2mqtt/${member.friendly_name}`, { qos: 0 });
+      const topic = `zigbee2mqtt/${member.friendly_name}`;
+      if (!subscribedTopics.has(topic)) {
+        mqttClient.subscribe(topic, { qos: 0 });
+        subscribedTopics.add(topic);
+      }
     }
   }
 
@@ -873,6 +695,7 @@ function stopLightsMonitor() {
   console.log('Lights MQTT disconnecting (idle)...');
   mqttClient.end();
   mqttClient = null;
+  subscribedTopics.clear();
   if (lightsIdleCheck) {
     clearInterval(lightsIdleCheck);
     lightsIdleCheck = null;
@@ -907,7 +730,7 @@ function ensureMqttConnected(timeoutMs = 5000) {
 app.get('/lights', (req, res) => {
   touchLights();
   // Aggregate capabilities across all group members
-  const capabilities = { color: false, color_temp: false, color_temp_min: 500, color_temp_max: 150 };
+  const capabilities = { color: false, color_temp: false, color_temp_min: 150, color_temp_max: 500 };
   for (const m of groupMembers) {
     if (m.supports.color) capabilities.color = true;
     if (m.supports.color_temp) {

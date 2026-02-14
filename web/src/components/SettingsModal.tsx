@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { lockScroll, unlockScroll } from '@/lib/scroll-lock';
 import { createPortal } from 'react-dom';
 import { useTransition, animated } from '@react-spring/web';
 import { Button } from '@hobbit/ui/8bit/button';
@@ -77,13 +78,9 @@ export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
   // Lock body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      lockScroll();
+      return () => unlockScroll();
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [isOpen]);
 
   // Modal transition - scales from top-right corner

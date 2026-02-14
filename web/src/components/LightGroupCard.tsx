@@ -62,10 +62,10 @@ export function LightGroupCard({
       <CardHeader className={children ? 'pb-3 border-b-6 border-foreground dark:border-ring' : ''}>
         <div className={`bg-muted/50 rounded-md px-3 py-3 ${acting ? 'animate-shimmer' : ''}`}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col">
               <CardTitle className="text-sm">{name}</CardTitle>
               {reconnecting && (
-                <span className="text-[10px] text-muted-foreground animate-pulse">
+                <span className="text-[10px] text-muted-foreground animate-pulse mt-1">
                   Connecting...
                 </span>
               )}
@@ -74,6 +74,7 @@ export function LightGroupCard({
               {onColorClick && (
                 <button
                   onClick={onColorClick}
+                  aria-label="Change light color"
                   className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors touch-manipulation active:scale-95"
                 >
                   <PaletteIcon />

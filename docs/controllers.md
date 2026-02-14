@@ -197,14 +197,6 @@ lsusb | grep Microsoft
 
 Should show the Xbox Wireless Adapter. If not, try a different USB port.
 
-## Previous Bluetooth Setup
-
-The previous Bluetooth-based controller support is preserved but disabled:
-- `web/src/hooks/useBluetooth.ts` — React hook (unused)
-- `docs/bluetooth.md` — Documentation (reference only)
-- `.claude/skills/bluetooth.md` — Claude skill (reference only)
-- Bluetooth endpoints in `files/bridge.js` — Still registered but inert
-
 ## Files Reference
 
 | File | Purpose |

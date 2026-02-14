@@ -19,7 +19,7 @@ services:
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
     environment:
-      - TZ=America/New_York
+      - TZ={{ timezone }}
     depends_on:
       - mqtt
 

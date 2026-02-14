@@ -64,7 +64,8 @@ export function useLights(refreshInterval = 5000) {
       setData(result);
       setCache(CACHE_KEY, result);
       setLoading(false);
-    } catch {
+    } catch (err) {
+      console.error('Failed to fetch lights:', err);
       setLoading(false);
     }
   }, []);
