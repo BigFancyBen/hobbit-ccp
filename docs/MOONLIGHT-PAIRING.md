@@ -10,7 +10,7 @@ This guide covers pairing Moonlight (AppImage) with Sunshine on your gaming PC.
 
 ## Prerequisites
 
-1. Sunshine installed and running on your gaming PC (192.168.0.69:47989)
+1. Sunshine installed and running on your gaming PC (192.168.0.69:21675)
 2. Moonlight AppImage installed on mini PC (via ansible setup)
 3. Physical access to the mini PC's monitor (to see the Moonlight UI)
 
@@ -41,7 +41,7 @@ This will:
 2. Add your gaming PC's IP if not already listed: `192.168.0.69`
 3. Click on the gaming PC to start pairing
 4. A 4-digit PIN will appear on the mini PC screen
-5. Go to your gaming PC, open Sunshine web UI (https://localhost:47990)
+5. Go to your gaming PC, open Sunshine web UI (https://192.168.0.69:21675 or the Sunshine admin port)
 6. Enter the PIN to approve pairing
 
 ### 4. Exit Moonlight
@@ -57,7 +57,7 @@ sudo pkill Xorg
 Test that Moonlight can see apps from your gaming PC. Since Moonlight is a Qt app that requires a display, use `xvfb-run` for headless operation:
 
 ```bash
-xvfb-run -a moonlight list 192.168.0.69
+xvfb-run -a moonlight list 192.168.0.69:21675
 ```
 
 Should output something like:

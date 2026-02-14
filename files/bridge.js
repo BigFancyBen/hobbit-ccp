@@ -7,7 +7,9 @@ app.use(cors());
 app.use(express.json());
 
 // Gaming PC with Sunshine server
-const GAMING_PC = process.env.GAMING_PC_HOST || '192.168.0.69';
+const GAMING_PC_IP = '192.168.0.69';
+const GAMING_PC_PORT = 21675;
+const GAMING_PC = `${GAMING_PC_IP}:${GAMING_PC_PORT}`;
 
 // Cached app list - refreshed on-demand when stale
 let cachedApps = ['Desktop'];
@@ -165,7 +167,7 @@ let lastStatusRequest = 0;
 const STATUS_IDLE_TIMEOUT = 30000; // Stop checking after 30s of no requests
 
 function checkSunshine() {
-  exec(`nc -z -w 1 ${GAMING_PC} 47989`, { timeout: 2000 }, (err) => {
+  exec(`nc -z -w 1 ${GAMING_PC_IP} ${GAMING_PC_PORT}`, { timeout: 2000 }, (err) => {
     sunshineOnline = !err;
   });
 }
