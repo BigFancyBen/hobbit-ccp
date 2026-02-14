@@ -61,7 +61,7 @@ function Button({ children, asChild, ...props }: BitButtonProps) {
     >
       {asChild ? (
         <span className="relative inline-flex items-center justify-center gap-1.5">
-          {children}
+          <span className="truncate min-w-0">{children}</span>
 
           {variant !== "ghost" && variant !== "link" && size !== "icon" && (
             <>
@@ -103,7 +103,7 @@ function Button({ children, asChild, ...props }: BitButtonProps) {
         </span>
       ) : (
         <>
-          {children}
+          <span className="truncate min-w-0">{children}</span>
 
           {variant !== "ghost" && variant !== "link" && size !== "icon" && (
             <>

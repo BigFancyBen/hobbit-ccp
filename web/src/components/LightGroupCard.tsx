@@ -58,8 +58,8 @@ export function LightGroupCard({
   }, [brightnessPercent]);
 
   return (
-    <Card>
-      <CardHeader className={children ? 'pb-3 border-b-6 border-foreground dark:border-ring' : ''}>
+    <Card variant="compact">
+      <CardHeader variant="compact" className={children ? 'border-b-6 border-foreground dark:border-ring' : ''}>
         <div className={`bg-muted/50 rounded-md px-3 py-3 ${acting ? 'animate-shimmer' : ''}`}>
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
@@ -106,7 +106,7 @@ export function LightGroupCard({
         </div>
       </CardHeader>
       {children && (
-        <CardContent>
+        <CardContent className="pb-6">
           <div className={`mx-2 ${acting ? 'animate-shimmer' : ''}`}>
             {children}
           </div>

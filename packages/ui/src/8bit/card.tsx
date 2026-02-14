@@ -20,9 +20,14 @@ export const cardVariants = cva("", {
       normal: "",
       retro: "retro",
     },
+    variant: {
+      default: "",
+      compact: "",
+    },
   },
   defaultVariants: {
     font: "retro",
+    variant: "default",
   },
 });
 
@@ -33,7 +38,7 @@ export interface BitCardProps
 }
 
 function Card({ ...props }: BitCardProps) {
-  const { className, font } = props;
+  const { className, font, variant } = props;
 
   return (
     <div
@@ -47,6 +52,7 @@ function Card({ ...props }: BitCardProps) {
         className={cn(
           "rounded-none border-0 !w-full",
           font !== "normal" && "retro",
+          variant === "compact" && "!py-0",
           className
         )}
       />
@@ -60,11 +66,15 @@ function Card({ ...props }: BitCardProps) {
 }
 
 function CardHeader({ ...props }: BitCardProps) {
-  const { className, font } = props;
+  const { className, font, variant } = props;
 
   return (
     <ShadcnCardHeader
-      className={cn(font !== "normal" && "retro", className)}
+      className={cn(
+        font !== "normal" && "retro",
+        variant === "compact" && "[.border-b]:!pb-0",
+        className
+      )}
       {...props}
     />
   );
