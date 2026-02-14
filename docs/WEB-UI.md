@@ -399,13 +399,14 @@ Output goes to `web/dist/`.
 
 ### Deployment
 
-Use the unified deploy script from the project root:
+Use the deploy script from the project root:
 
 ```bash
-./deploy.sh
+./deploy.sh          # Full deploy (everything)
+./deploy.sh web      # Web-only: build + copy dist + reload nginx (~25-35s)
 ```
 
-This builds the web UI and deploys via Ansible.
+For a CSS or JS change, `./deploy.sh web` skips bridge restart and docker recreation.
 
 ## Animations with react-spring
 

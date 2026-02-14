@@ -30,7 +30,10 @@ npm run build        # Production build → web/dist/
 
 ### Deployment (from project root, Git Bash on Windows)
 ```bash
-./deploy.sh          # Builds web UI + runs Ansible deploy playbook
+./deploy.sh          # Full deploy (default) — deps, build, everything
+./deploy.sh web      # Build web UI + copy to remote + reload nginx (~25-35s)
+./deploy.sh bridge   # Copy bridge files + npm install + restart bridge (~20-30s)
+./deploy.sh docker   # Sync docker/nginx/mqtt configs + recreate containers (~15-25s)
 ```
 
 ### Manual Ansible (from WSL)
@@ -82,7 +85,7 @@ Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached gam
 
 ## Deployment Flow
 
-`deploy.sh` installs workspace dependencies, builds the web UI, then runs `ansible-playbook playbooks/deploy.yml` which copies files to the mini PC at 192.168.0.67 (`hobbit_dir: /home/hobbit/hobbit`), runs `npm install` for the bridge, restarts Docker services and the bridge systemd unit, then verifies health.
+`deploy.sh` accepts an optional target argument (`web`, `bridge`, `docker`, or no argument for full). A full deploy installs workspace dependencies, builds the web UI, then runs `ansible-playbook playbooks/deploy.yml` which copies files to the mini PC at 192.168.0.67 (`hobbit_dir: /home/hobbit/hobbit`), runs `npm install` for the bridge, restarts Docker services and the bridge systemd unit, then verifies health. Targeted deploys use Ansible `--tags` to run only the relevant subset of tasks (e.g., `./deploy.sh web` only copies web dist and reloads nginx).
 
 The dev proxy in `web/vite.config.js` points to the real mini PC at `192.168.0.67`, so `npm run dev` talks to the live bridge.
 

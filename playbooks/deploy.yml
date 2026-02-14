@@ -11,6 +11,7 @@
           - ddcutil
         state: present
         update_cache: no
+      tags: [infra]
 
     - name: Allow hobbit to run intel_gpu_top without password
       lineinfile:
@@ -19,6 +20,7 @@
         create: yes
         mode: '0440'
         validate: 'visudo -cf %s'
+      tags: [infra]
 
     # DISABLED — using Xbox Wireless Adapter (xone driver handles controllers)
     # - name: Install Bluetooth packages
@@ -32,6 +34,7 @@
         name: hobbit
         groups: input
         append: yes
+      tags: [infra]
 
     # DISABLED — using Xbox Wireless Adapter
     # - name: Allow hobbit to run bluetoothctl without password
@@ -48,6 +51,7 @@
         state: directory
         owner: hobbit
         group: hobbit
+      tags: [infra]
 
     - name: Create subdirectories
       file:
@@ -62,6 +66,7 @@
         - zigbee2mqtt
         - space
         - ssl
+      tags: [infra]
 
     - name: Generate self-signed SSL certificate
       command: >
@@ -73,18 +78,21 @@
       args:
         creates: "{{ hobbit_dir }}/ssl/hobbit.crt"
       notify: Restart docker services
+      tags: [docker]
 
     - name: Template Docker Compose file
       template:
         src: ../files/docker-compose.yml
         dest: "{{ hobbit_dir }}/docker-compose.yml"
       notify: Restart docker services
+      tags: [docker]
 
     - name: Template Nginx config
       template:
         src: ../files/nginx.conf
         dest: "{{ hobbit_dir }}/nginx.conf"
       notify: Restart docker services
+      tags: [docker]
 
     - name: Provision Tailscale HTTPS cert
       command: tailscale cert --cert-file {{ hobbit_dir }}/ssl/tailscale.crt --key-file {{ hobbit_dir }}/ssl/tailscale.key {{ tailscale_fqdn }}
@@ -93,6 +101,7 @@
       changed_when: tailscale_cert.rc == 0
       failed_when: false
       notify: Restart docker services
+      tags: [docker]
 
     - name: Set up monthly Tailscale cert renewal
       cron:
@@ -100,12 +109,14 @@
         job: "tailscale cert --cert-file {{ hobbit_dir }}/ssl/tailscale.crt --key-file {{ hobbit_dir }}/ssl/tailscale.key {{ tailscale_fqdn }} && docker restart hobbit-webserver-1"
         special_time: monthly
       when: tailscale_fqdn is defined
+      tags: [docker]
 
     - name: Copy Mosquitto config
       copy:
         src: ../files/mosquitto.conf
         dest: "{{ hobbit_dir }}/mosquitto/mosquitto.conf"
       notify: Restart docker services
+      tags: [docker]
 
     - name: Copy Zigbee2MQTT config (initial only)
       template:
@@ -113,6 +124,7 @@
         dest: "{{ hobbit_dir }}/zigbee2mqtt/configuration.yaml"
         force: no
       notify: Restart docker services
+      tags: [docker]
 
     - name: Backup Zigbee2MQTT state
       copy:
@@ -124,18 +136,21 @@
         - configuration.yaml
         - database.db
       failed_when: false
+      tags: [docker]
 
     - name: Copy HDMI control script
       copy:
         src: ../files/hdmi-control.sh
         dest: /usr/local/bin/hdmi-control.sh
         mode: '0755'
+      tags: [infra]
 
     - name: Copy xone pairing script
       copy:
         src: ../files/xone-pair.sh
         dest: /usr/local/bin/xone-pair.sh
         mode: '0755'
+      tags: [infra]
 
     - name: Allow hobbit to run xone-pair without password
       lineinfile:
@@ -144,24 +159,28 @@
         create: yes
         mode: '0440'
         validate: 'visudo -cf %s'
+      tags: [infra]
 
     - name: Copy bridge.js
       copy:
         src: ../files/bridge.js
         dest: "{{ hobbit_dir }}/bridge/bridge.js"
       notify: Restart bridge
+      tags: [bridge]
 
     - name: Copy bridge package.json
       copy:
         src: ../files/package.json
         dest: "{{ hobbit_dir }}/bridge/package.json"
       notify: Restart bridge
+      tags: [bridge]
 
     - name: Install bridge dependencies
       npm:
         path: "{{ hobbit_dir }}/bridge"
         state: present
       become_user: hobbit
+      tags: [bridge]
 
     - name: Copy web dist
       copy:
@@ -169,7 +188,8 @@
         dest: "{{ hobbit_dir }}/web/"
         owner: hobbit
         group: hobbit
-      notify: Restart docker services
+      notify: Reload nginx
+      tags: [web]
 
     - name: Copy SilverBullet custom styles
       copy:
@@ -178,6 +198,7 @@
         owner: hobbit
         group: hobbit
       notify: Restart docker services
+      tags: [docker]
 
     - name: Copy bridge service file
       copy:
@@ -186,6 +207,7 @@
       notify:
         - Reload systemd
         - Restart bridge
+      tags: [bridge]
 
   handlers:
     - name: Reload systemd
@@ -197,6 +219,11 @@
         name: hobbit-bridge
         state: restarted
         enabled: yes
+
+    - name: Reload nginx
+      shell: |
+        cd {{ hobbit_dir }}
+        docker compose exec -T webserver nginx -s reload
 
     - name: Restart docker services
       shell: |
