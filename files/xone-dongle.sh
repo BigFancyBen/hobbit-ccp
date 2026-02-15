@@ -23,9 +23,12 @@ find_dongle() {
 case "$1" in
   on)
     # Try saved path first (attributes may be unreadable when unauthorized)
+    dev=""
     if [ -f "$STATE_FILE" ]; then
       dev=$(cat "$STATE_FILE")
-    else
+    fi
+    # Fallback: if saved path is stale, try searching
+    if [ -z "$dev" ] || [ ! -f "$dev/authorized" ]; then
       dev=$(find_dongle)
     fi
     if [ -n "$dev" ] && [ -f "$dev/authorized" ]; then

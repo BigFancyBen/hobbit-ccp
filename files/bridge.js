@@ -58,8 +58,13 @@ exec('sudo /usr/local/bin/xone-dongle.sh off', (err) => {
   else console.log('Xbox dongle turned off (idle state)');
 });
 
-// Cleanup when gaming session ends
-function cleanupGamingSession() {
+// Session generation counter — prevents stale cleanups from racing with new launches
+let sessionGen = 0;
+
+// Cleanup when gaming session ends (only if no new session has started)
+function cleanupGamingSession(gen) {
+  if (gen !== sessionGen) return;
+  sessionGen++;  // invalidate this gen so a second call (close + timeout) is a no-op
   console.log('Gaming session ended, cleaning up...');
   exec('sudo /usr/local/bin/hdmi-control.sh off');
   exec('sudo /usr/local/bin/xone-dongle.sh off', (err) => {
@@ -82,6 +87,9 @@ app.post('/launch-moonlight', (req, res) => {
       return res.status(400).json({ error: 'Already running. Exit first.' });
     }
 
+    // Increment session generation so any pending cleanup from a previous session becomes a no-op
+    const gen = ++sessionGen;
+
     // Enable Xbox dongle (controllers auto-connect) and HDMI, then launch X
     exec('sudo /usr/local/bin/xone-dongle.sh on', (err) => {
       if (err) console.error('Failed to turn on Xbox dongle:', err.message);
@@ -101,7 +109,7 @@ sleep 1 && su hobbit -c "DISPLAY=:0 moonlight stream ${GAMING_PC} \\"${appName}\
 
       // Cleanup when the gaming session exits on its own
       child.on('close', () => {
-        cleanupGamingSession();
+        cleanupGamingSession(gen);
       });
 
       res.json({ status: 'launching', app: appName });
@@ -124,12 +132,13 @@ app.post('/apps/refresh', (req, res) => {
 
 // Kill Moonlight and X, then cleanup
 app.post('/exit-gaming', (req, res) => {
+  const gen = sessionGen;
   // Turn off monitor FIRST while Xorg is still running (DPMS works reliably)
   exec('DISPLAY=:0 xset dpms force off', () => {
     // Small delay to let DPMS take effect before killing X
     setTimeout(() => {
       exec('sudo pkill -9 Xorg; sudo pkill -9 xinit; sudo pkill -9 moonlight', () => {
-        setTimeout(cleanupGamingSession, 500);
+        setTimeout(() => cleanupGamingSession(gen), 500);
       });
     }, 200);
   });
