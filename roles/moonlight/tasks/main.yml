@@ -89,14 +89,14 @@
   apt:
     name:
       - dkms
-      - cabextract
+      - libarchive-tools
       - curl
       - linux-headers-generic
     state: present
 
 - name: Clone xone driver
   git:
-    repo: https://github.com/medusalix/xone.git
+    repo: https://github.com/dlundqvist/xone.git
     dest: /opt/xone
     version: master
   register: xone_cloned
@@ -108,7 +108,7 @@
   when: xone_cloned.changed
 
 - name: Download xone firmware
-  command: ./xone-get-firmware.sh --skip-disclaimer
+  command: ./install/firmware.sh --skip-disclaimer
   args:
     chdir: /opt/xone
-    creates: /lib/firmware/xow_dongle.bin
+    creates: /lib/firmware/xone_dongle_02e6.bin

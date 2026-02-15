@@ -54,6 +54,7 @@ interface SystemTabProps {
 
 export function SystemTab({ onReboot, loading }: SystemTabProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pairError, setPairError] = useState<string | null>(null);
   const { controllers, pairing, loading: controllersLoading, startPairing, stopPairing } = useControllers();
 
   const handleConfirm = () => {
@@ -156,13 +157,20 @@ export function SystemTab({ onReboot, loading }: SystemTabProps) {
               </span>
             </div>
             <div className="flex items-center justify-between mt-1">
-              <span className="text-xs sm:text-sm retro text-muted-foreground/50">
-                - EMPTY -
+              <span className={`text-xs sm:text-sm retro ${pairError ? 'text-destructive' : 'text-muted-foreground/50'}`}>
+                {pairError || '- EMPTY -'}
               </span>
               <Button
                 variant="outline"
                 className="h-7 text-[10px] px-2 touch-manipulation"
-                onClick={() => startPairing()}
+                onClick={async () => {
+                  setPairError(null);
+                  const err = await startPairing();
+                  if (err) {
+                    setPairError(err);
+                    setTimeout(() => setPairError(null), 5000);
+                  }
+                }}
               >
                 Pair
               </Button>

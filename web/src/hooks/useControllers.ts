@@ -28,13 +28,24 @@ export function useControllers(refreshInterval = 3000) {
     }
   }, []);
 
-  const startPairing = useCallback(async () => {
+  const startPairing = useCallback(async (): Promise<string | null> => {
     setPairing(true);
-    await fetch('/api/control/controllers/pair', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: true }),
-    });
+    try {
+      const res = await fetch('/api/control/controllers/pair', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: true }),
+      });
+      const data = await res.json();
+      if (data.status === 'error') {
+        setPairing(false);
+        return data.error || 'Pairing failed';
+      }
+      return null;
+    } catch {
+      setPairing(false);
+      return 'Network error';
+    }
   }, []);
 
   const stopPairing = useCallback(async () => {

@@ -80,12 +80,12 @@ The `roles/moonlight/tasks/main.yml` playbook handles:
 
 ### GET /controllers
 
-Returns currently connected controllers and pairing state.
+Returns currently connected controllers and pairing state. Controller names are read from sysfs (`/sys/class/input/eventX/device/name`) by resolving the `/dev/input/by-id/` symlink to its event device. Falls back to the cleaned by-id filename if the sysfs read fails.
 
 ```json
 {
   "controllers": [
-    { "name": "Microsoft Xbox One S Controller" }
+    { "name": "Microsoft Xbox Controller" }
   ],
   "pairing": false
 }

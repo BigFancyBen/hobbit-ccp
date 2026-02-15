@@ -27,7 +27,7 @@ The `hobbit` user must be in:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/control/controllers` | GET | List connected controllers + pairing state |
+| `/api/control/controllers` | GET | List connected controllers + pairing state. Names resolved from sysfs (`/sys/class/input/eventX/device/name`) via by-id symlink, falling back to cleaned filename. |
 | `/api/control/controllers/pair` | POST | Toggle adapter pairing mode (`{ "enabled": true/false }`) |
 
 ## Troubleshooting Commands

@@ -314,6 +314,7 @@ app.get('/gpu-stats', (req, res) => {
 
 // System stats - reads from /proc
 const fs = require('fs');
+const path = require('path');
 
 // CPU stats - reads /proc/stat and calculates usage percentage
 let lastCpuStats = null;
@@ -528,16 +529,25 @@ app.get('/disk-stats', (req, res) => {
 let pairingActive = false;
 let pairingTimeout = null;
 
-app.get('/controllers', (req, res) => {
-  fs.readdir('/dev/input/by-id/', (err, files) => {
-    if (err) return res.json({ controllers: [], pairing: pairingActive });
-    const controllers = files
-      .filter(f => f.endsWith('-event-joystick') && /xbox|microsoft/i.test(f))
-      .map(f => ({
-        name: f.replace(/-event-joystick$/, '').replace(/^usb-/, '').replace(/_/g, ' ')
-      }));
+app.get('/controllers', async (req, res) => {
+  try {
+    const files = await fs.promises.readdir('/dev/input/by-id/');
+    const controllers = await Promise.all(
+      files
+        .filter(f => f.endsWith('-event-joystick') && /xbox|microsoft/i.test(f))
+        .map(async f => {
+          const target = await fs.promises.readlink(`/dev/input/by-id/${f}`).catch(() => null);
+          const event = target && path.basename(target);
+          const sysName = event && await fs.promises.readFile(`/sys/class/input/${event}/device/name`, 'utf8').catch(() => null);
+          return {
+            name: sysName?.trim() || f.replace(/-event-joystick$/, '').replace(/^usb-/, '').replace(/_/g, ' ')
+          };
+        })
+    );
     res.json({ controllers, pairing: pairingActive });
-  });
+  } catch {
+    res.json({ controllers: [], pairing: pairingActive });
+  }
 });
 
 // Toggle adapter pairing mode via xone sysfs interface
@@ -546,15 +556,19 @@ app.post('/controllers/pair', (req, res) => {
 
   if (enabled && !pairingActive) {
     pairingActive = true;
-    pairingTimeout = setTimeout(() => {
-      exec('sudo /usr/local/bin/xone-pair.sh 0');
-      pairingActive = false;
-      pairingTimeout = null;
-    }, 30000);
-    exec('sudo /usr/local/bin/xone-pair.sh 1', (err) => {
-      if (err) console.error('xone-pair.sh:', err.message);
+    exec('sudo /usr/local/bin/xone-pair.sh 1', (err, stdout, stderr) => {
+      if (err) {
+        console.error('xone-pair.sh:', stderr || err.message);
+        pairingActive = false;
+        return res.json({ status: 'error', error: (stderr || err.message).trim() });
+      }
+      pairingTimeout = setTimeout(() => {
+        exec('sudo /usr/local/bin/xone-pair.sh 0');
+        pairingActive = false;
+        pairingTimeout = null;
+      }, 30000);
+      res.json({ status: 'pairing' });
     });
-    res.json({ status: 'pairing' });
   } else if (!enabled && pairingActive) {
     exec('sudo /usr/local/bin/xone-pair.sh 0');
     pairingActive = false;
