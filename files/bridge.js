@@ -48,18 +48,24 @@ function refreshAppListIfStale() {
 
 // No startup refresh - lazy load on first request
 
-// Ensure HDMI is off on startup (default idle state)
+// Ensure HDMI and Xbox dongle are off on startup (default idle state)
 exec('sudo /usr/local/bin/hdmi-control.sh off', (err) => {
   if (err) console.error('Failed to turn off HDMI on startup:', err.message);
   else console.log('HDMI turned off (idle state)');
+});
+exec('sudo /usr/local/bin/xone-dongle.sh off', (err) => {
+  if (err) console.error('Failed to turn off Xbox dongle on startup:', err.message);
+  else console.log('Xbox dongle turned off (idle state)');
 });
 
 // Cleanup when gaming session ends
 function cleanupGamingSession() {
   console.log('Gaming session ended, cleaning up...');
   exec('sudo /usr/local/bin/hdmi-control.sh off');
-  // Xbox Wireless Adapter controllers don't need software disconnect —
-  // the adapter handles connection state in hardware
+  exec('sudo /usr/local/bin/xone-dongle.sh off', (err) => {
+    if (err) console.error('Failed to turn off Xbox dongle:', err.message);
+    else console.log('Xbox dongle turned off');
+  });
 }
 
 // Launch Moonlight streaming a specific app
@@ -76,7 +82,11 @@ app.post('/launch-moonlight', (req, res) => {
       return res.status(400).json({ error: 'Already running. Exit first.' });
     }
 
-    // Enable HDMI output first, then launch X
+    // Enable Xbox dongle (controllers auto-connect) and HDMI, then launch X
+    exec('sudo /usr/local/bin/xone-dongle.sh on', (err) => {
+      if (err) console.error('Failed to turn on Xbox dongle:', err.message);
+      else console.log('Xbox dongle turned on');
+    });
     exec('sudo /usr/local/bin/hdmi-control.sh on', () => {
       // Launch X with openbox window manager for proper fullscreen handling
       // Stream at 1080p to match monitor, openbox handles window maximization
@@ -551,26 +561,38 @@ app.get('/controllers', async (req, res) => {
 });
 
 // Toggle adapter pairing mode via xone sysfs interface
+// Dongle must be enabled first (it's off by default)
 app.post('/controllers/pair', (req, res) => {
   const { enabled } = req.body;
 
   if (enabled && !pairingActive) {
     pairingActive = true;
-    exec('sudo /usr/local/bin/xone-pair.sh 1', (err, stdout, stderr) => {
-      if (err) {
-        console.error('xone-pair.sh:', stderr || err.message);
-        pairingActive = false;
-        return res.json({ status: 'error', error: (stderr || err.message).trim() });
-      }
-      pairingTimeout = setTimeout(() => {
-        exec('sudo /usr/local/bin/xone-pair.sh 0');
-        pairingActive = false;
-        pairingTimeout = null;
-      }, 30000);
-      res.json({ status: 'pairing' });
+    // Enable dongle first, then enter pairing mode
+    exec('sudo /usr/local/bin/xone-dongle.sh on', (dongleErr) => {
+      if (dongleErr) console.error('Failed to enable dongle for pairing:', dongleErr.message);
+      // Small delay for driver to bind before writing to sysfs
+      setTimeout(() => {
+        exec('sudo /usr/local/bin/xone-pair.sh 1', (err, stdout, stderr) => {
+          if (err) {
+            console.error('xone-pair.sh:', stderr || err.message);
+            pairingActive = false;
+            exec('sudo /usr/local/bin/xone-dongle.sh off');
+            return res.json({ status: 'error', error: (stderr || err.message).trim() });
+          }
+          pairingTimeout = setTimeout(() => {
+            exec('sudo /usr/local/bin/xone-pair.sh 0');
+            pairingActive = false;
+            pairingTimeout = null;
+            // Turn dongle back off after pairing window closes
+            exec('sudo /usr/local/bin/xone-dongle.sh off');
+          }, 30000);
+          res.json({ status: 'pairing' });
+        });
+      }, 1000);
     });
   } else if (!enabled && pairingActive) {
     exec('sudo /usr/local/bin/xone-pair.sh 0');
+    exec('sudo /usr/local/bin/xone-dongle.sh off');
     pairingActive = false;
     if (pairingTimeout) {
       clearTimeout(pairingTimeout);

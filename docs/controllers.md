@@ -37,27 +37,30 @@ Game controllers connect to the Hobbit mini PC via an Xbox Wireless Adapter (mod
 4. Moonlight sends input over the network to Sunshine
 5. Sunshine emulates an Xbox 360 controller for games
 
+## Dongle Power Management
+
+The Xbox Wireless Adapter USB dongle is **off by default** to save controller battery. It's toggled automatically with gaming sessions:
+
+- **Bridge startup**: dongle disabled (idle state)
+- **Game launch** (`/launch-moonlight`): dongle enabled — paired controllers auto-reconnect within ~2s
+- **Game exit** (`/exit-gaming` or session ends naturally): dongle disabled — controllers disconnect
+
+This is done via `xone-dongle.sh on|off`, which toggles the USB device's `authorized` sysfs attribute. When deauthorized, the kernel unbinds the xone driver and the adapter stops RF communication. When re-authorized, the driver rebinds and paired controllers reconnect automatically.
+
 ## Pairing a Controller
 
-Pairing can be triggered from the web UI or via hardware buttons:
+Pairing is a **one-time setup**. Once paired, the controller remembers the adapter and auto-connects whenever the dongle is enabled.
 
-### From the Web UI
+### From the Web UI (rare)
 
-1. Go to **Settings > System**
-2. Click **Pair** on the empty controller slot
-3. Press the **sync button** on your Xbox controller (top, near LB)
-4. The UI shows "Pairing..." for up to 30 seconds
-5. Once paired, the controller appears as a connected slot
-
-Click **Stop** to cancel pairing early.
+The `/controllers/pair` API endpoint temporarily enables the dongle, enters pairing mode for 30 seconds, then disables the dongle again.
 
 ### Hardware-Only
 
-1. Press the **sync button** on the Xbox Wireless Adapter (small button on the side)
-2. Press the **sync button** on the Xbox controller
-3. Both will flash, then the controller's Xbox button stays lit = connected
-
-Controllers remember their pairing — just press the Xbox button to reconnect.
+1. Temporarily enable the dongle (e.g., launch a game, or use the API)
+2. Press the **sync button** on the Xbox Wireless Adapter (small button on the side)
+3. Press the **sync button** on the Xbox controller (top, near LB)
+4. Both will flash, then the controller's Xbox button stays lit = paired
 
 ## xone Driver
 
@@ -91,7 +94,7 @@ Returns currently connected controllers and pairing state. Controller names are 
 }
 ```
 
-Returns an empty array if no controllers are connected:
+Returns an empty array if no controllers are connected (normal when dongle is off):
 ```json
 {
   "controllers": [],
@@ -101,7 +104,7 @@ Returns an empty array if no controllers are connected:
 
 ### POST /controllers/pair
 
-Toggle the adapter's pairing mode via the xone sysfs interface.
+Toggle the adapter's pairing mode. Automatically enables the dongle first (with 1s delay for driver bind), then enters pairing mode via `xone-pair.sh`. Disables the dongle when pairing ends.
 
 **Enable pairing:**
 ```json
@@ -109,21 +112,13 @@ Toggle the adapter's pairing mode via the xone sysfs interface.
 ```
 Response: `{ "status": "pairing" }`
 
-Pairing auto-stops after 30 seconds. The bridge runs `xone-pair.sh 1` which writes to `/sys/bus/usb/drivers/xone-dongle/*/pairing`.
+Pairing auto-stops after 30 seconds.
 
 **Disable pairing:**
 ```json
 { "enabled": false }
 ```
 Response: `{ "status": "stopped" }`
-
-## Web UI
-
-Controllers appear as read-only "save slots" in **Settings > System**:
-- Connected controllers show with a green "Connected" dot
-- An empty slot shows "Sync controller to adapter" with a **Pair** button
-- Clicking **Pair** activates adapter pairing mode for 30 seconds
-- Clicking **Stop** cancels pairing early
 
 ## Troubleshooting
 
@@ -149,31 +144,36 @@ Look for lines like:
 xone-dongle: USB dongle detected
 ```
 
+### Check dongle USB device
+
+```bash
+lsusb | grep Microsoft
+```
+
+Should show the Xbox Wireless Adapter (vendor 045e, product 02e6 or 02fe).
+
+### Check dongle authorization state
+
+```bash
+# Find the dongle's sysfs path
+for dev in /sys/bus/usb/devices/[0-9]*; do
+  [ -f "$dev/idVendor" ] || continue
+  [ "$(cat "$dev/idVendor" 2>/dev/null)" = "045e" ] || continue
+  echo "$dev: authorized=$(cat "$dev/authorized" 2>/dev/null)"
+done
+```
+
+### Manually toggle dongle
+
+```bash
+sudo /usr/local/bin/xone-dongle.sh on   # Enable
+sudo /usr/local/bin/xone-dongle.sh off  # Disable
+```
+
 ### Check controller appears as input device
 
 ```bash
 ls /dev/input/by-id/ | grep joystick
-```
-
-Should show something like:
-```
-usb-Microsoft_Xbox_One_S_Controller-event-joystick
-```
-
-### Test controller input
-
-```bash
-# Install evtest if needed
-sudo apt install evtest
-
-# List input devices and select the joystick
-sudo evtest
-```
-
-### Verify via bridge API
-
-```bash
-curl http://hobbit.local/api/control/controllers
 ```
 
 ### Check bridge logs
@@ -182,30 +182,20 @@ curl http://hobbit.local/api/control/controllers
 journalctl -u hobbit-bridge -f
 ```
 
-### Controller not connecting
+### Controller not connecting after game launch
 
-1. Ensure the adapter's LED is flashing (sync mode)
-2. Hold the controller's sync button until the Xbox button flashes rapidly
-3. Try moving closer to the adapter
-4. Check `dmesg` for USB/xone errors
-
-### Adapter not detected
-
-```bash
-lsusb | grep Microsoft
-```
-
-Should show the Xbox Wireless Adapter. If not, try a different USB port.
+1. Check bridge logs for "Xbox dongle turned on" message
+2. Verify dongle is authorized (see above)
+3. The controller takes ~2s to auto-reconnect after dongle is enabled
+4. Try pressing the Xbox button on the controller to wake it
 
 ## Files Reference
 
 | File | Purpose |
 |------|---------|
-| `files/bridge.js` | `/controllers` and `/controllers/pair` API endpoints |
+| `files/bridge.js` | `/controllers` and `/controllers/pair` API endpoints, dongle toggle on launch/exit |
+| `files/xone-dongle.sh` | Toggles dongle USB device via sysfs `authorized` attribute |
 | `files/xone-pair.sh` | Toggles xone adapter pairing via sysfs |
-| `web/src/hooks/useControllers.ts` | React data hook |
-| `web/src/components/SystemTab.tsx` | Controller UI (read-only save slots) |
 | `roles/moonlight/tasks/main.yml` | xone driver installation |
-| `playbooks/deploy.yml` | User group config |
+| `playbooks/deploy.yml` | Script deployment, sudoers, user group config |
 | `docs/controllers.md` | This documentation |
-| `.claude/skills/controllers.md` | Claude skill reference |

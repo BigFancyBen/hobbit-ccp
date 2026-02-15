@@ -46,10 +46,9 @@ web/
 │   │   ├── LightGroupCard.tsx   # Reusable: toggle + dimmer slider + optional children
 │   │   ├── SettingsModal.tsx    # Settings dialog (Stats + System tabs)
 │   │   ├── StatsTab.tsx         # System stats (CPU, GPU, RAM, disk, network)
-│   │   └── SystemTab.tsx        # Reboot + Controllers (RPG "save slots" UI)
+│   │   └── SystemTab.tsx        # Reboot (RPG "save slots" UI)
 │   ├── hooks/
 │   │   ├── useSystemStats.ts   # Custom hook for bridge stats API
-│   │   ├── useControllers.ts    # Custom hook for Xbox Wireless Adapter controllers
 │   │   └── useLights.ts         # Custom hook for Zigbee light control
 │   ├── lib/
 │   │   ├── cache.ts             # Module-level cache for persistent data

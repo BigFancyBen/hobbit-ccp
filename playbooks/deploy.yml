@@ -152,14 +152,24 @@
         mode: '0755'
       tags: [infra]
 
-    - name: Allow hobbit to run xone-pair without password
+    - name: Copy xone dongle toggle script
+      copy:
+        src: ../files/xone-dongle.sh
+        dest: /usr/local/bin/xone-dongle.sh
+        mode: '0755'
+      tags: [infra, bridge]
+
+    - name: Allow hobbit to run xone scripts without password
       lineinfile:
         path: /etc/sudoers.d/hobbit-gaming
-        line: 'hobbit ALL=(ALL) NOPASSWD: /usr/local/bin/xone-pair.sh'
+        line: '{{ item }}'
         create: yes
         mode: '0440'
         validate: 'visudo -cf %s'
-      tags: [infra]
+      loop:
+        - 'hobbit ALL=(ALL) NOPASSWD: /usr/local/bin/xone-pair.sh'
+        - 'hobbit ALL=(ALL) NOPASSWD: /usr/local/bin/xone-dongle.sh'
+      tags: [infra, bridge]
 
     - name: Copy bridge.js
       copy:

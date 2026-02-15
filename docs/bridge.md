@@ -32,7 +32,7 @@ Some operations can't be done from Docker containers:
 │  - Gaming PC / Sunshine reachability                    │
 │  - Moonlight launch / exit                              │
 │  - Monitor control (HDMI/DPMS)                          │
-│  - Xbox Wireless Adapter controllers                     │
+│  - Xbox Wireless Adapter (dongle power management)        │
 └─────────────────────────────────────────────────────────┘
 ```
 
