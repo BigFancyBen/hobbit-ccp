@@ -531,6 +531,40 @@ app.get('/disk-stats', (req, res) => {
   res.json(diskStats || { used_gb: 0, total_gb: 0, usage_percent: 0 });
 });
 
+// Xbox controller dongle status — reads sysfs (instant, no lazy monitor needed)
+const CONTROLLER_LABELS = {
+  '0MGT0097602541': 'Green',
+};
+
+function getControllerStatus() {
+  const driverPath = '/sys/bus/usb/drivers/xone-dongle';
+  if (!fs.existsSync(driverPath)) return { dongleConnected: false, controllers: [], pairing: false };
+  const usbDirs = fs.readdirSync(driverPath).filter(e => /^\d+-\d+/.test(e));
+  if (!usbDirs.length) return { dongleConnected: false, controllers: [], pairing: false };
+  const p = `${driverPath}/${usbDirs[0]}`;
+  let pairing = false;
+  try { pairing = fs.readFileSync(`${p}/pairing`, 'utf8').trim() === '1'; } catch {}
+
+  // Parse /proc/bus/input/devices for connected Xbox controller serials
+  const controllers = [];
+  try {
+    const raw = fs.readFileSync('/proc/bus/input/devices', 'utf8');
+    const blocks = raw.split('\n\n');
+    for (const block of blocks) {
+      if (!block.includes('Name="Microsoft Xbox Controller"')) continue;
+      const uniqMatch = block.match(/Uniq=(\S+)/);
+      if (uniqMatch && uniqMatch[1]) {
+        const serial = uniqMatch[1];
+        controllers.push({ serial, label: CONTROLLER_LABELS[serial] || serial });
+      }
+    }
+  } catch {}
+
+  return { dongleConnected: true, controllers, pairing };
+}
+
+app.get('/controllers', (req, res) => res.json(getControllerStatus()));
+
 // ============================================================
 // Zigbee Lights — MQTT-based control for livingroom group
 // ============================================================

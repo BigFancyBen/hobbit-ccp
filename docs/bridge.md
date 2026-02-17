@@ -221,6 +221,7 @@ Commands requiring root access need sudoers entries. Add to `roles/webserver/tas
 | `/lights` | GET | Zigbee light group + individual states |
 | `/lights/group/set` | POST | Set group state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
 | `/lights/:id/set` | POST | Set individual light state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
+| `/controllers` | GET | Xbox controller dongle + connected controllers |
 
 ## MQTT Integration
 

@@ -1,0 +1,29 @@
+---
+- name: Install xone build dependencies
+  apt:
+    name:
+      - dkms
+      - linux-headers-generic
+      - curl
+      - cabextract
+    state: present
+
+- name: Clone xone driver
+  git:
+    repo: https://github.com/dlundqvist/xone.git
+    dest: /usr/src/xone
+    version: master
+  register: xone_clone
+
+- name: Install xone via DKMS
+  command: make install
+  args:
+    chdir: /usr/src/xone
+    creates: /var/lib/dkms/xone
+  when: xone_clone is changed or not ansible_check_mode
+
+- name: Install dongle firmware
+  command: ./install/firmware.sh
+  args:
+    chdir: /usr/src/xone
+    creates: /lib/firmware/xow_dongle.bin

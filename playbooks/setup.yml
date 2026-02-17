@@ -9,5 +9,6 @@
     - tailscale   # WireGuard mesh VPN for remote access
     - dns         # Local DNS server (dnsmasq)
     - moonlight   # X11, Moonlight, pairing prep
+    - xone        # Xbox wireless dongle driver
     - zigbee      # Mosquitto, Zigbee2MQTT
     - webserver   # Nginx, React app, bridge service
