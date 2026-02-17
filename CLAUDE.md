@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Hobbit Mini PC Setup — transforms a Peladn mini PC into a hybrid LAN gaming device and silent smart home server. A React SPA communicates through Nginx to a Node.js bridge service running on the host, which manages system stats, Moonlight game streaming, Xbox Wireless Adapter controllers, and monitor power.
+Hobbit Mini PC Setup — transforms a Peladn mini PC into a hybrid LAN gaming device and silent smart home server. A React SPA communicates through Nginx to a Node.js bridge service running on the host, which manages system stats, Moonlight game streaming, and monitor power.
 
 ## Architecture
 
@@ -17,7 +17,7 @@ Phone/Browser → Nginx (Docker, port 80/443) → React SPA (static files)
 Also running: Mosquitto MQTT (Docker, 127.0.0.1:1883), dnsmasq (host), Tailscale (host)
 ```
 
-The bridge runs on the host (not in Docker) because it needs direct access to `/proc`, X11, Xbox Wireless Adapter (xone driver), HDMI control, and other system-level operations.
+The bridge runs on the host (not in Docker) because it needs direct access to `/proc`, X11, HDMI control, and other system-level operations.
 
 ## Commands
 
@@ -57,7 +57,7 @@ There are no tests or linting configured.
 - `files/` — All config files deployed by Ansible (docker-compose, nginx, systemd, etc.)
 - `roles/` — Ansible roles (base, security, tailscale, dns, moonlight, zigbee, webserver)
 - `playbooks/` — Ansible playbooks (setup.yml for first-time, deploy.yml for updates)
-- `docs/` — Detailed docs on bridge API, controllers, DNS, security, troubleshooting
+- `docs/` — Detailed docs on bridge API, DNS, security, troubleshooting
 
 ## Frontend Conventions
 
@@ -69,7 +69,7 @@ There are no tests or linting configured.
 
 **Module-level caching** (`web/src/lib/cache.ts`): Simple Map-based cache outside React lifecycle. Initialize `useState` from cache to prevent skeleton flash on remount. Update cache on successful fetch.
 
-**Data fetching**: Custom hooks (`useSystemStats`, `useControllers`, `useLights`) poll the bridge API at intervals. Only `useLights` gates polling on tab visibility (`document.visibilitychange`). The bridge uses a "lazy monitoring" pattern — expensive background work (stats collection, Sunshine reachability checks, MQTT connections) only runs when recently requested and auto-stops after 30s idle. Bridge POST endpoints that need MQTT use `ensureMqttConnected()` to wait up to 5s for a sleeping connection to establish, so the first command after idle works transparently.
+**Data fetching**: Custom hooks (`useSystemStats`, `useLights`) poll the bridge API at intervals. Only `useLights` gates polling on tab visibility (`document.visibilitychange`). The bridge uses a "lazy monitoring" pattern — expensive background work (stats collection, Sunshine reachability checks, MQTT connections) only runs when recently requested and auto-stops after 30s idle. Bridge POST endpoints that need MQTT use `ensureMqttConnected()` to wait up to 5s for a sleeping connection to establish, so the first command after idle works transparently.
 
 **Optimistic updates with cooldown**: Hooks that mutate server state (e.g., `useLights`) use optimistic updates paired with an `ignoreUntil` ref that suppresses poll overwrites for 3 seconds after user actions. This prevents stale server state from snapping the UI back before MQTT/Zigbee confirms the change. On fetch error (non-`ok` response or network failure), the optimistic state is reverted to `prevData` and `ignoreUntil` is cleared so the next poll can resync.
 
@@ -81,7 +81,7 @@ There are no tests or linting configured.
 
 All endpoints are under `/api/control/` in production (Nginx proxy strips the prefix). In the bridge code, routes are registered at root (`/health`, `/status`, `/cpu-stats`, etc.).
 
-Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached game list), `/apps/refresh`, `/launch-moonlight?app=X`, `/exit-gaming`, `/cpu-stats`, `/gpu-stats`, `/ram-stats`, `/disk-stats`, `/net-stats`, `/monitor-on`, `/monitor-off`, `/reboot`, `/shutdown`, `/lights` (Zigbee group state + capabilities + per-device color support), `/lights/group/set` (accepts `state`, `brightness`, `color`, `color_temp`), `/lights/:id/set`, `/controllers`, `/controllers/pair`.
+Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached game list), `/apps/refresh`, `/launch-moonlight?app=X`, `/exit-gaming`, `/cpu-stats`, `/gpu-stats`, `/ram-stats`, `/disk-stats`, `/net-stats`, `/monitor-on`, `/monitor-off`, `/reboot`, `/shutdown`, `/lights` (Zigbee group state + capabilities + per-device color support), `/lights/group/set` (accepts `state`, `brightness`, `color`, `color_temp`), `/lights/:id/set`.
 
 ## Deployment Flow
 

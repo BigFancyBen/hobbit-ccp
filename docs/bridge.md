@@ -32,7 +32,7 @@ Some operations can't be done from Docker containers:
 │  - Gaming PC / Sunshine reachability                    │
 │  - Moonlight launch / exit                              │
 │  - Monitor control (HDMI/DPMS)                          │
-│  - Xbox Wireless Adapter (dongle power management)        │
+│  - Zigbee light control (MQTT)                            │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -218,13 +218,9 @@ Commands requiring root access need sudoers entries. Add to `roles/webserver/tas
 | `/monitor-off` | POST | Turn off display |
 | `/shutdown` | POST | Shutdown system |
 | `/reboot` | POST | Reboot system |
-| `/controllers` | GET | Connected Xbox controllers + pairing state |
-| `/controllers/pair` | POST | Toggle adapter pairing mode |
 | `/lights` | GET | Zigbee light group + individual states |
 | `/lights/group/set` | POST | Set group state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
 | `/lights/:id/set` | POST | Set individual light state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
-
-See `docs/controllers.md` for full controller documentation.
 
 ## MQTT Integration
 

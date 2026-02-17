@@ -83,32 +83,3 @@
       3. Add your gaming PC's IP in Moonlight
       4. Enter the PIN shown on your gaming PC
       5. Exit Moonlight (Ctrl+Q)
-
-# Xbox Wireless Adapter (xone driver)
-- name: Install xone dependencies
-  apt:
-    name:
-      - dkms
-      - libarchive-tools
-      - curl
-      - linux-headers-generic
-    state: present
-
-- name: Clone xone driver
-  git:
-    repo: https://github.com/dlundqvist/xone.git
-    dest: /opt/xone
-    version: master
-  register: xone_cloned
-
-- name: Install xone driver (DKMS)
-  command: ./install.sh
-  args:
-    chdir: /opt/xone
-  when: xone_cloned.changed
-
-- name: Download xone firmware
-  command: ./install/firmware.sh --skip-disclaimer
-  args:
-    chdir: /opt/xone
-    creates: /lib/firmware/xone_dongle_02e6.bin

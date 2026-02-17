@@ -46,11 +46,10 @@ web/
 │   │   ├── LightGroupCard.tsx   # Reusable: toggle + dimmer slider + optional children
 │   │   ├── SettingsModal.tsx    # Settings dialog (Stats + System tabs)
 │   │   ├── StatsTab.tsx         # System stats (CPU, GPU, RAM, disk, network)
-│   │   └── SystemTab.tsx        # Reboot + Xbox controller slots (RPG "save slots" UI)
+│   │   └── SystemTab.tsx        # System reboot
 │   ├── hooks/
 │   │   ├── useSystemStats.ts   # Custom hook for bridge stats API
-│   │   ├── useLights.ts         # Custom hook for Zigbee light control
-│   │   └── useControllers.ts    # Custom hook for Xbox controller state + pairing
+│   │   └── useLights.ts         # Custom hook for Zigbee light control
 │   ├── lib/
 │   │   ├── cache.ts             # Module-level cache for persistent data
 │   │   └── scroll-lock.ts       # Ref-counted body scroll lock for modals
@@ -308,8 +307,6 @@ The bridge service (`/api/control/`) provides these endpoints:
 | `/reboot` | POST | Reboot the mini PC |
 | `/shutdown` | POST | Shutdown the mini PC |
 | `/health` | GET | Health check |
-| `/controllers` | GET | Connected Xbox controllers + pairing state |
-| `/controllers/pair` | POST | Toggle adapter pairing mode |
 | `/lights` | GET | Zigbee light group + individual states + capabilities |
 | `/lights/group/set` | POST | Set group state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
 | `/lights/:id/set` | POST | Set individual light state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
