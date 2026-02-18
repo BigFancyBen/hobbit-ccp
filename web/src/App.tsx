@@ -32,11 +32,11 @@ function App() {
       const res = await fetch(`${API}/apps`);
       if (res.ok) {
         const data = await res.json();
-        setApps(data.apps || ['Desktop']);
+        setApps(data.apps || []);
       }
     } catch (err) {
       console.error('Failed to fetch apps:', err);
-      setApps(['Desktop']);
+      setApps([]);
     }
   };
 

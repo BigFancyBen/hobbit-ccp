@@ -29,9 +29,9 @@ export function AppGrid({ apps, loading, launchingApp, onLaunchApp }: AppGridPro
   if (apps.length === 0) {
     return (
       <Empty className="py-8">
-        <EmptyTitle>No Games Found</EmptyTitle>
+        <EmptyTitle>Couldn't Load Apps</EmptyTitle>
         <EmptyDescription>
-          No Sunshine apps detected. Make sure Sunshine is running.
+          Make sure Sunshine is running on the gaming PC.
         </EmptyDescription>
       </Empty>
     );
