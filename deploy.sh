@@ -3,8 +3,8 @@
 # Run from Git Bash on Windows: ./deploy.sh [target]
 #
 # Targets:
-#   (none)   Full deploy (default) — install deps, build web, deploy everything
-#   web      Build web UI + copy to remote + reload nginx
+#   (none)   Full deploy (default) — sync, build on server, deploy everything
+#   web      Sync source + build on server + reload nginx
 #   bridge   Copy bridge files + npm install + restart bridge service
 #   docker   Sync docker/nginx/mqtt configs + recreate containers
 
@@ -20,27 +20,14 @@ echo ""
 
 case "$TARGET" in
   full)
-    echo "[1/4] Installing dependencies..."
-    npm install
-    echo "      Dependencies installed"
-    echo ""
-
-    echo "[2/4] Building Web UI..."
-    cd web
-    npm run build
-    cd ..
-    echo "      Web UI built successfully"
-    echo ""
-
-    echo "[3/4] Deploying via Ansible..."
+    echo "[1/2] Deploying via Ansible..."
     wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
-        ANSIBLE_ROLES_PATH=./roles \
-        ANSIBLE_HOST_KEY_CHECKING=False \
-        ansible-playbook playbooks/deploy.yml -i inventory.ini"
+        ANSIBLE_CONFIG=./ansible.cfg \
+        ansible-playbook playbooks/deploy.yml"
     echo "      Ansible deployment complete"
     echo ""
 
-    echo "[4/4] Verifying deployment..."
+    echo "[2/2] Verifying deployment..."
     sleep 5
 
     API_STATUS=$(curl -skf -H "Host: hobbit.local" https://192.168.0.67/api/control/health 2>/dev/null && echo "OK" || echo "FAILED")
@@ -62,23 +49,10 @@ case "$TARGET" in
     ;;
 
   web)
-    echo "[1/3] Installing dependencies..."
-    npm install
-    echo "      Dependencies installed"
-    echo ""
-
-    echo "[2/3] Building Web UI..."
-    cd web
-    npm run build
-    cd ..
-    echo "      Web UI built successfully"
-    echo ""
-
-    echo "[3/3] Deploying web UI via Ansible..."
+    echo "[1/1] Deploying web UI via Ansible..."
     wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
-        ANSIBLE_ROLES_PATH=./roles \
-        ANSIBLE_HOST_KEY_CHECKING=False \
-        ansible-playbook playbooks/deploy.yml -i inventory.ini --tags web"
+        ANSIBLE_CONFIG=./ansible.cfg \
+        ansible-playbook playbooks/deploy.yml --tags web"
     echo "      Web UI deployed"
     echo ""
 
@@ -88,9 +62,8 @@ case "$TARGET" in
   bridge)
     echo "[1/2] Deploying bridge via Ansible..."
     wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
-        ANSIBLE_ROLES_PATH=./roles \
-        ANSIBLE_HOST_KEY_CHECKING=False \
-        ansible-playbook playbooks/deploy.yml -i inventory.ini --tags bridge"
+        ANSIBLE_CONFIG=./ansible.cfg \
+        ansible-playbook playbooks/deploy.yml --tags bridge"
     echo "      Bridge deployed"
     echo ""
 
@@ -106,9 +79,8 @@ case "$TARGET" in
   docker)
     echo "[1/1] Deploying docker configs via Ansible..."
     wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
-        ANSIBLE_ROLES_PATH=./roles \
-        ANSIBLE_HOST_KEY_CHECKING=False \
-        ansible-playbook playbooks/deploy.yml -i inventory.ini --tags docker"
+        ANSIBLE_CONFIG=./ansible.cfg \
+        ansible-playbook playbooks/deploy.yml --tags docker"
     echo "      Docker configs deployed"
     echo ""
 

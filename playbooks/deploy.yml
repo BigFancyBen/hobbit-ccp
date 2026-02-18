@@ -38,7 +38,7 @@
         group: hobbit
       loop:
         - bridge
-        - web
+        - webapp
         - mosquitto
         - zigbee2mqtt
         - space
@@ -143,12 +143,56 @@
       become_user: hobbit
       tags: [bridge]
 
-    - name: Copy web dist
-      copy:
-        src: ../web/dist/
-        dest: "{{ hobbit_dir }}/web/"
+    - name: Create webapp directory
+      file:
+        path: "{{ hobbit_dir }}/webapp"
+        state: directory
         owner: hobbit
         group: hobbit
+      tags: [web]
+
+    - name: Sync root workspace package.json
+      copy:
+        src: ../package.json
+        dest: "{{ hobbit_dir }}/webapp/package.json"
+        owner: hobbit
+        group: hobbit
+      tags: [web]
+
+    - name: Sync packages to server
+      synchronize:
+        src: ../packages/
+        dest: "{{ hobbit_dir }}/webapp/packages/"
+        delete: yes
+      become: no
+      tags: [web]
+
+    - name: Sync web source to server
+      synchronize:
+        src: ../web/
+        dest: "{{ hobbit_dir }}/webapp/web/"
+        delete: yes
+        rsync_opts:
+          - "--exclude=node_modules"
+          - "--exclude=dist"
+          - "--exclude=package-lock.json"
+      become: no
+      tags: [web]
+
+    - name: Install webapp dependencies
+      command: npm install
+      args:
+        chdir: "{{ hobbit_dir }}/webapp"
+      become_user: hobbit
+      register: npm_install
+      changed_when: "'up to date' not in npm_install.stdout"
+      tags: [web]
+
+    - name: Build web UI on server
+      command: npm run build
+      args:
+        chdir: "{{ hobbit_dir }}/webapp/web"
+      become_user: hobbit
       notify: Reload nginx
       tags: [web]
 
