@@ -52,7 +52,7 @@ There are no tests or linting configured.
   - `src/lib/utils.ts` — `cn()` utility (clsx + tailwind-merge)
   - `src/styles/` — `theme.css` (oklch Atari color vars), `retro.css` (Press Start 2P font)
 - `web/src/` — React 18 + TypeScript + Vite + Tailwind v4 frontend
-- `files/bridge.js` — Express backend (single file, ~1000 lines), deployed to mini PC
+- `files/bridge.js` — Express backend (single file, ~850 lines), deployed to mini PC
 - `files/silverbullet/` — SilverBullet theme (STYLES.md deployed to space/)
 - `files/` — All config files deployed by Ansible (docker-compose, nginx, systemd, etc.)
 - `roles/` — Ansible roles (base, security, tailscale, dns, moonlight, zigbee, webserver)
