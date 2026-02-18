@@ -5,7 +5,7 @@ SilverBullet is a markdown-based wiki/note-taking app running as a Docker contai
 ## Access
 
 - **URL**: `https://hobbit.house/sb`
-- **Credentials**: Configured via `sb_user` in `group_vars/all.yml` (default: `hobbit:changeme`)
+- **Credentials**: Configured via `sb_user` in `group_vars/vault.yml` (encrypted with Ansible Vault)
 - **IP restriction**: Nginx allows specific IPs and the Docker bridge subnet — but since nginx is in Docker, all LAN clients appear as `172.18.0.1`, so password auth (`SB_USER`) is the real access control
 
 ## Architecture
@@ -63,7 +63,7 @@ The `-k` flag skips self-signed certificate verification.
 
 | Variable | File | Purpose |
 |----------|------|---------|
-| `sb_user` | `group_vars/all.yml` | Username:password for SilverBullet auth |
+| `sb_user` | `group_vars/vault.yml` | Username:password for SilverBullet auth (encrypted) |
 | `SB_URL_PREFIX` | `files/docker-compose.yml` | Path prefix (`/sb`) |
 | IP allowlist | `files/nginx.conf` | Restrict access to specific devices |
 
@@ -73,9 +73,9 @@ Notes are stored as markdown files in `/home/hobbit/hobbit/space/` on the mini P
 
 ## Changing the Password
 
-1. Edit `group_vars/all.yml`:
-   ```yaml
-   sb_user: "hobbit:newpassword"
+1. Edit the vault file:
+   ```bash
+   wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ANSIBLE_CONFIG=./ansible.cfg ansible-vault edit group_vars/vault.yml"
    ```
 2. Deploy:
    ```bash

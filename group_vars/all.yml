@@ -9,8 +9,7 @@ hobbit_dir: "/home/hobbit/hobbit"
 # Network security
 lan_subnet: "192.168.0.0/24"
 
-# SilverBullet
-sb_user: "hobbit:changeme"
+# SilverBullet — sb_user is in vault.yml (encrypted)
 
 # Tailscale (set after running `tailscale up` on the mini PC)
 tailscale_fqdn: "hobbit.tailf803eb.ts.net"
