@@ -1,111 +1,44 @@
-import { useState, useEffect } from 'react';
-import { Alert, AlertDescription } from '@hobbit/ui/8bit/alert';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation, Redirect } from 'wouter';
+import { useTransition, animated } from '@react-spring/web';
 import { SettingsModal } from '@/components/SettingsModal';
-import { GameLauncher } from '@/components/GameLauncher';
+import { NavBar } from '@/components/NavBar';
 import { LightControls } from '@/components/LightControls';
-import { toast } from '@hobbit/ui/8bit/toast';
+import { GamesPage } from '@/components/GameLauncher';
+
+const API = '/api/control';
+
+const ROUTES = ['/', '/games'] as const;
+
+function routeIndex(location: string): number {
+  if (location === '/games') return 1;
+  return 0; // '/' and '/lights' both map to index 0
+}
 
 function App() {
-  const [status, setStatus] = useState({ mode: 'idle', sunshineOnline: false });
-  const [apps, setApps] = useState<string[]>([]);
+  const [location] = useLocation();
   const [loading, setLoading] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [initialLoading, setInitialLoading] = useState(true);
+  const prevRouteIndexRef = useRef(routeIndex(location));
 
-  const API = '/api/control';
-
-  const checkStatus = async () => {
-    try {
-      const res = await fetch(`${API}/status`);
-      if (res.ok) {
-        setStatus(await res.json());
-        setError(null);
-      }
-    } catch (err) {
-      console.error('Status check failed:', err);
-      setError('Cannot connect to server');
-    }
-  };
-
-  const fetchApps = async () => {
-    try {
-      const res = await fetch(`${API}/apps`);
-      if (res.ok) {
-        const data = await res.json();
-        setApps(data.apps || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch apps:', err);
-      setApps([]);
-    }
-  };
+  const currentIndex = routeIndex(location);
+  const direction = currentIndex > prevRouteIndexRef.current ? 1 : -1;
 
   useEffect(() => {
-    const init = async () => {
-      await Promise.all([checkStatus(), fetchApps()]);
-      setInitialLoading(false);
-    };
-    init();
+    prevRouteIndexRef.current = currentIndex;
+  }, [currentIndex]);
 
-    // Only poll when tab is visible
-    let interval: ReturnType<typeof setInterval> | null = setInterval(checkStatus, 5000);
+  // Determine which page key to use (normalize / and /lights to same key)
+  const pageKey = currentIndex === 0 ? 'lights' : 'games';
 
-    const handleVisibility = () => {
-      if (document.hidden) {
-        if (interval) { clearInterval(interval); interval = null; }
-      } else {
-        checkStatus(); // Immediate check on refocus
-        if (!interval) interval = setInterval(checkStatus, 5000);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      if (interval) clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, []);
-
-  const launchApp = async (appName: string) => {
-    setLoading(appName);
-    try {
-      const res = await fetch(`${API}/launch-moonlight?app=${encodeURIComponent(appName)}`, {
-        method: 'POST'
-      });
-      if (res.ok) {
-        toast(`${appName} launched!`);
-      } else {
-        const data = await res.json();
-        const errorMsg = data.error || 'Failed to launch';
-        setError(errorMsg);
-        toast(errorMsg);
-      }
-    } catch (err) {
-      console.error('Failed to launch app:', err);
-      setError('Failed to connect');
-      toast('Failed to connect');
-    }
-    setLoading(null);
-    setTimeout(checkStatus, 2000);
-  };
-
-  const exitGaming = async () => {
-    setLoading('exit');
-    try {
-      await fetch(`${API}/exit-gaming`, { method: 'POST' });
-      toast('Gaming mode stopped');
-    } catch (err) {
-      console.error('Failed to exit gaming:', err);
-      setError('Failed to exit');
-      toast('Failed to exit');
-    }
-    setLoading(null);
-    setTimeout(checkStatus, 1000);
-  };
+  const pageTransition = useTransition(pageKey, {
+    from: { opacity: 0, x: direction * 60 },
+    enter: { opacity: 1, x: 0 },
+    leave: { opacity: 0, x: -direction * 60, position: 'absolute' as const },
+    config: { tension: 300, friction: 26 },
+  });
 
   const handleReboot = async () => {
     setLoading('reboot');
-    toast('Rebooting system...');
     try {
       await fetch(`${API}/reboot`, { method: 'POST' });
     } catch {
@@ -114,36 +47,35 @@ function App() {
     setLoading(null);
   };
 
+  // Redirect unknown paths to /
+  if (location !== '/' && location !== '/lights' && location !== '/games') {
+    return <Redirect to="/" />;
+  }
+
   return (
     <div className="min-h-screen p-4 sm:p-6">
       <div className="max-w-lg mx-auto">
-        {/* Header with settings */}
-        <header className="flex items-center justify-between mb-6">
-          <h1 className="text-xl sm:text-2xl font-bold retro">Hobbit</h1>
+        {/* Header with nav and settings */}
+        <header className="flex items-center gap-2 mb-6">
+          <NavBar />
           <SettingsModal onReboot={handleReboot} loading={loading} />
         </header>
 
-        {/* Error display */}
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Light Controls */}
-        <LightControls />
-
-        {/* Game Launcher */}
-        <div className="mt-4">
-          <GameLauncher
-            status={status}
-            apps={apps}
-            loading={loading}
-            initialLoading={initialLoading}
-            offline={!status.sunshineOnline}
-            onLaunchApp={launchApp}
-            onExitGaming={exitGaming}
-          />
+        {/* Page content with slide transitions */}
+        <div className="relative overflow-x-hidden">
+          {pageTransition((style, key) => (
+            <animated.div
+              style={{
+                ...style,
+                width: '100%',
+                top: 0,
+                left: 0,
+              }}
+            >
+              {key === 'lights' && <LightControls />}
+              {key === 'games' && <GamesPage />}
+            </animated.div>
+          ))}
         </div>
       </div>
     </div>

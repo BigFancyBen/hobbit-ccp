@@ -1,31 +1,27 @@
+import { Skeleton } from '@hobbit/ui/8bit/skeleton';
 import { Empty, EmptyTitle, EmptyDescription } from '@hobbit/ui/8bit/empty';
-import { AppButton } from './AppButton';
+import { AppRow } from './AppRow';
 
-interface AppGridProps {
+interface AppListProps {
   apps: string[];
   loading?: boolean;
   launchingApp: string | null;
   onLaunchApp: (app: string) => void;
 }
 
-export function AppGrid({ apps, loading, launchingApp, onLaunchApp }: AppGridProps) {
-  // Show skeleton grid during initial load
+export function AppList({ apps, loading, launchingApp, onLaunchApp }: AppListProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="divide-y divide-dashed divide-muted-foreground/30">
         {[1, 2, 3, 4].map((i) => (
-          <AppButton
-            key={i}
-            appName=""
-            loading={true}
-            onClick={() => {}}
-          />
+          <div key={i} className="px-4 py-4">
+            <Skeleton className="h-5 w-32" />
+          </div>
         ))}
       </div>
     );
   }
 
-  // Show empty state if no apps found
   if (apps.length === 0) {
     return (
       <Empty className="py-8">
@@ -38,9 +34,9 @@ export function AppGrid({ apps, loading, launchingApp, onLaunchApp }: AppGridPro
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div>
       {apps.map(app => (
-        <AppButton
+        <AppRow
           key={app}
           appName={app}
           launching={launchingApp === app}
