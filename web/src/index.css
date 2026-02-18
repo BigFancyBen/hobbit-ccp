@@ -68,19 +68,3 @@ html {
   color-scheme: dark;
 }
 
-/* react-colorful — square corners for 8-bit theme */
-.react-colorful {
-  border-radius: 0 !important;
-}
-.react-colorful__saturation {
-  border-radius: 0 !important;
-}
-.react-colorful__hue,
-.react-colorful__alpha {
-  border-radius: 0 !important;
-}
-.react-colorful__saturation-pointer,
-.react-colorful__hue-pointer,
-.react-colorful__alpha-pointer {
-  border-radius: 0 !important;
-}

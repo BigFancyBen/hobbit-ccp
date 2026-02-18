@@ -75,13 +75,13 @@ There are no tests or linting configured.
 
 **Reusable components**: `LightGroupCard` (`web/src/components/LightGroupCard.tsx`) — a card with a toggle switch, dimmer slider, optional palette button, and optional children for individual device controls. Used for Zigbee light groups. The slider uses local state during drag (`onValueChange`) and commits on release (`onValueCommit`). Brightness uses a quadratic curve (`percent² × 254`) so the slider spends more range on dim values where perceived brightness changes the most. Optional `onColorClick` prop renders a pixel-art palette icon for color control. Optional `reconnecting` prop shows a pulsing "Connecting..." label next to the title.
 
-**Color picker**: `ColorPickerModal` (`web/src/components/ColorPickerModal.tsx`) — portal modal with `react-colorful` hex picker (300ms debounce) and/or color temp slider (mired range from device capabilities). Only shown when the light group has color-capable devices. Uses same `useTransition` + backdrop + pixel border pattern as `ConfirmDialog`. CSS in `index.css` removes border-radius from react-colorful for 8-bit consistency.
+**Color picker**: `ColorPickerModal` (`web/src/components/ColorPickerModal.tsx`) — portal modal with curated color swatches and warmth presets. The bridge stores `color_hex` (the hex we *sent*) on each device so the modal can highlight the active swatch on reopen — MQTT only echoes CIE xy which can't round-trip to hex. Setting `color_temp` clears `color_hex` and vice versa, both server-side and via optimistic updates. Selected swatches get a yellow outline (`border-yellow-400 ring-2`). Uses `useTransition` + backdrop + pixel border pattern.
 
 ## Bridge API
 
 All endpoints are under `/api/control/` in production (Nginx proxy strips the prefix). In the bridge code, routes are registered at root (`/health`, `/status`, `/cpu-stats`, etc.).
 
-Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached game list), `/apps/refresh`, `/launch-moonlight?app=X`, `/exit-gaming`, `/cpu-stats`, `/gpu-stats`, `/ram-stats`, `/disk-stats`, `/net-stats`, `/monitor-on`, `/monitor-off`, `/reboot`, `/shutdown`, `/lights` (Zigbee group state + capabilities + per-device color support), `/lights/group/set` (accepts `state`, `brightness`, `color`, `color_temp`), `/lights/:id/set`, `/controllers` (Xbox controller dongle + connected controllers).
+Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached game list), `/apps/refresh`, `/launch-moonlight?app=X`, `/exit-gaming`, `/cpu-stats`, `/gpu-stats`, `/ram-stats`, `/disk-stats`, `/net-stats`, `/monitor-on`, `/monitor-off`, `/reboot`, `/shutdown`, `/lights` (Zigbee group state + capabilities + per-device `color_hex`/`color_temp`), `/lights/group/set` (accepts `state`, `brightness`, `color`, `color_temp`), `/lights/:id/set`, `/controllers` (Xbox controller dongle + connected controllers).
 
 ## Deployment Flow
 

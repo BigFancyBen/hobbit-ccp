@@ -4,7 +4,6 @@ import { Switch } from '@hobbit/ui/8bit/switch';
 import { Slider } from '@hobbit/ui/8bit/slider';
 
 function PaletteIcon() {
-  // Pixel-art style: 16x16 grid, 4 color swatches in a 2x2 block
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

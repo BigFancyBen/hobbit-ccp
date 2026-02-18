@@ -656,7 +656,7 @@ function startLightsMonitor() {
     } else if (topic === `zigbee2mqtt/${LIGHT_GROUP}`) {
       if (data.state !== undefined) lightsState.group.state = data.state;
       if (data.brightness !== undefined) lightsState.group.brightness = data.brightness;
-      if (data.color !== undefined) lightsState.group.color = data.color;
+      // Store color_temp from MQTT but NOT color (MQTT sends xy, not hex)
       if (data.color_temp !== undefined) lightsState.group.color_temp = data.color_temp;
     } else {
       // Individual device state
@@ -667,7 +667,7 @@ function startLightsMonitor() {
         }
         if (data.state !== undefined) lightsState.devices[deviceName].state = data.state;
         if (data.brightness !== undefined) lightsState.devices[deviceName].brightness = data.brightness;
-        if (data.color !== undefined) lightsState.devices[deviceName].color = data.color;
+        // Store color_temp from MQTT but NOT color (MQTT sends xy, not hex)
         if (data.color_temp !== undefined) lightsState.devices[deviceName].color_temp = data.color_temp;
       }
     }
@@ -747,7 +747,7 @@ app.get('/lights', async (req, res) => {
     name: m.friendly_name,
     state: lightsState.devices[m.friendly_name]?.state || 'OFF',
     brightness: lightsState.devices[m.friendly_name]?.brightness || 0,
-    color: lightsState.devices[m.friendly_name]?.color || null,
+    color_hex: lightsState.devices[m.friendly_name]?.color_hex || null,
     color_temp: lightsState.devices[m.friendly_name]?.color_temp || null,
     supports: m.supports,
   }));
@@ -758,7 +758,7 @@ app.get('/lights', async (req, res) => {
       name: LIGHT_GROUP,
       state: lightsState.group.state,
       brightness: lightsState.group.brightness,
-      color: lightsState.group.color || null,
+      color_hex: lightsState.group.color_hex || null,
       color_temp: lightsState.group.color_temp || null,
     },
     devices,
@@ -778,7 +778,38 @@ app.post('/lights/group/set', async (req, res) => {
   if (req.body.brightness !== undefined) payload.brightness = req.body.brightness;
   if (req.body.color !== undefined) payload.color = req.body.color;
   if (req.body.color_temp !== undefined) payload.color_temp = req.body.color_temp;
-  mqttClient.publish(`zigbee2mqtt/${LIGHT_GROUP}/set`, JSON.stringify(payload));
+
+  // Brightness-only: send to individual ON lights instead of the group topic
+  // so OFF lights don't get turned on as a side effect
+  const brightnessOnly = payload.brightness !== undefined
+    && payload.state === undefined && payload.color === undefined && payload.color_temp === undefined;
+
+  // Track color_hex on set so we can serve it back (MQTT only echoes xy)
+  if (req.body.color?.hex) {
+    const hex = req.body.color.hex;
+    lightsState.group.color_hex = hex;
+    for (const member of groupMembers) {
+      if (!lightsState.devices[member.friendly_name]) lightsState.devices[member.friendly_name] = { state: 'OFF', brightness: 0 };
+      lightsState.devices[member.friendly_name].color_hex = hex;
+    }
+  }
+  if (req.body.color_temp !== undefined) {
+    lightsState.group.color_hex = null;
+    for (const member of groupMembers) {
+      if (lightsState.devices[member.friendly_name]) lightsState.devices[member.friendly_name].color_hex = null;
+    }
+  }
+
+  if (brightnessOnly) {
+    for (const member of groupMembers) {
+      const name = member.friendly_name;
+      if (lightsState.devices[name]?.state === 'ON') {
+        mqttClient.publish(`zigbee2mqtt/${name}/set`, JSON.stringify({ brightness: payload.brightness }));
+      }
+    }
+  } else {
+    mqttClient.publish(`zigbee2mqtt/${LIGHT_GROUP}/set`, JSON.stringify(payload));
+  }
   res.json({ status: 'ok', payload });
 });
 
@@ -799,6 +830,12 @@ app.post('/lights/:id/set', async (req, res) => {
   if (req.body.brightness !== undefined) payload.brightness = req.body.brightness;
   if (req.body.color !== undefined) payload.color = req.body.color;
   if (req.body.color_temp !== undefined) payload.color_temp = req.body.color_temp;
+
+  // Track color_hex on set so we can serve it back (MQTT only echoes xy)
+  if (!lightsState.devices[id]) lightsState.devices[id] = { state: 'OFF', brightness: 0 };
+  if (req.body.color?.hex) lightsState.devices[id].color_hex = req.body.color.hex;
+  if (req.body.color_temp !== undefined) lightsState.devices[id].color_hex = null;
+
   mqttClient.publish(`zigbee2mqtt/${id}/set`, JSON.stringify(payload));
   res.json({ status: 'ok', payload });
 });

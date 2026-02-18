@@ -1,11 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { lockScroll, unlockScroll } from '@/lib/scroll-lock';
 import { createPortal } from 'react-dom';
 import { useTransition, animated, to } from '@react-spring/web';
-import { HexColorPicker } from 'react-colorful';
-import { Slider } from '@hobbit/ui/8bit/slider';
 import { Button } from '@hobbit/ui/8bit/button';
-import type { GroupCapabilities } from '@/hooks/useLights';
 
 function CloseIcon() {
   return (
@@ -26,50 +23,81 @@ function CloseIcon() {
   );
 }
 
-interface ColorPickerModalProps {
+const COLOR_SWATCHES = [
+  { hex: '#FF0000', label: 'Red' },
+  { hex: '#FF4500', label: 'Coral' },
+  { hex: '#FF8C00', label: 'Orange' },
+  { hex: '#FFD700', label: 'Gold' },
+  { hex: '#00FF00', label: 'Green' },
+  { hex: '#00CED1', label: 'Teal' },
+  { hex: '#0000FF', label: 'Blue' },
+  { hex: '#8000FF', label: 'Purple' },
+  { hex: '#FF00FF', label: 'Magenta' },
+  { hex: '#FF69B4', label: 'Pink' },
+] as const;
+
+const WHITE_PRESETS = [
+  { label: 'Candle', mireds: 500 },
+  { label: 'Warm', mireds: 370 },
+  { label: 'Neutral', mireds: 250 },
+  { label: 'Cool', mireds: 200 },
+  { label: 'Daylight', mireds: 154 },
+] as const;
+
+/** Find the closest warmth preset to a given mired value */
+function closestPresetMireds(mireds: number): number {
+  let best = WHITE_PRESETS[0].mireds;
+  let bestDist = Math.abs(mireds - best);
+  for (const p of WHITE_PRESETS) {
+    const dist = Math.abs(mireds - p.mireds);
+    if (dist < bestDist) { best = p.mireds; bestDist = dist; }
+  }
+  return best;
+}
+
+interface DeviceSupports {
+  color: boolean;
+  color_temp: boolean;
+}
+
+interface ColorPaletteModalProps {
   open: boolean;
   onClose: () => void;
-  capabilities: GroupCapabilities;
+  title: string;
+  supports: DeviceSupports;
+  currentColorHex: string | null;
   currentColorTemp: number | null;
   onColorChange: (hex: string) => void;
   onColorTempChange: (mireds: number) => void;
 }
 
-export function ColorPickerModal({
+export function ColorPaletteModal({
   open,
   onClose,
-  capabilities,
+  title,
+  supports,
+  currentColorHex,
   currentColorTemp,
   onColorChange,
   onColorTempChange,
-}: ColorPickerModalProps) {
-  const [hex, setHex] = useState('#ffffff');
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+}: ColorPaletteModalProps) {
+  // Track which swatch is selected — "color" or "temp" mode
+  const [selected, setSelected] = useState<
+    { type: 'color'; hex: string } | { type: 'temp'; mireds: number } | null
+  >(null);
 
-  // Color temp slider — local drag state
-  const [ctSlider, setCtSlider] = useState(currentColorTemp ?? 350);
-  const ctDragging = useRef(false);
-
+  // Reset selection when modal opens for a new target
   useEffect(() => {
-    if (!ctDragging.current && currentColorTemp !== null) {
-      setCtSlider(currentColorTemp);
+    if (open) {
+      if (currentColorHex && COLOR_SWATCHES.some(s => s.hex === currentColorHex)) {
+        setSelected({ type: 'color', hex: currentColorHex });
+      } else if (currentColorTemp !== null) {
+        setSelected({ type: 'temp', mireds: closestPresetMireds(currentColorTemp) });
+      } else {
+        setSelected(null);
+      }
     }
-  }, [currentColorTemp]);
-
-  // Debounced color change
-  const handleColorChange = useCallback((newHex: string) => {
-    setHex(newHex);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      onColorChange(newHex);
-    }, 300);
-  }, [onColorChange]);
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
+  }, [open, title]); // title changes = different target
 
   // Lock body scroll
   useEffect(() => {
@@ -92,6 +120,19 @@ export function ColorPickerModal({
     leave: { opacity: 0 },
     config: { tension: 300, friction: 26 },
   });
+
+  function handleColorClick(hex: string) {
+    setSelected({ type: 'color', hex });
+    onColorChange(hex);
+  }
+
+  function handleTempClick(mireds: number) {
+    setSelected({ type: 'temp', mireds });
+    onColorTempChange(mireds);
+  }
+
+  const selectedColor = selected?.type === 'color' ? selected.hex : null;
+  const selectedTemp = selected?.type === 'temp' ? selected.mireds : null;
 
   const content = (
     <>
@@ -123,7 +164,7 @@ export function ColorPickerModal({
 
               {/* Header */}
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold retro">Light Color</h2>
+                <h2 className="text-sm font-semibold retro">{title}</h2>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -135,39 +176,52 @@ export function ColorPickerModal({
               </div>
 
               <div className="space-y-5 mx-1">
-                {/* Color picker */}
-                {capabilities.color && (
+                {/* Color swatches */}
+                {supports.color && (
                   <div className="space-y-2">
-                    <HexColorPicker
-                      color={hex}
-                      onChange={handleColorChange}
-                      style={{ width: '100%' }}
-                    />
+                    <span className="text-xs text-muted-foreground retro">Color</span>
+                    <div className="grid grid-cols-5 gap-3 justify-items-center">
+                      {COLOR_SWATCHES.map(({ hex, label }) => (
+                        <button
+                          key={hex}
+                          aria-label={label}
+                          onClick={() => handleColorClick(hex)}
+                          className={`w-10 h-10 touch-manipulation active:scale-90 transition-transform ${
+                            selectedColor === hex
+                              ? 'border-3 border-yellow-400 ring-2 ring-yellow-400'
+                              : 'border-3 border-foreground dark:border-ring'
+                          }`}
+                          style={{ backgroundColor: hex }}
+                        />
+                      ))}
+                    </div>
                   </div>
                 )}
 
-                {/* Color temperature */}
-                {capabilities.color_temp && (
+                {/* Warmth temperature presets */}
+                {supports.color_temp && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground retro">
-                      <span>Cool</span>
-                      <span>Warm</span>
+                    <span className="text-xs text-muted-foreground retro">Warmth</span>
+                    <div className="grid grid-cols-5 gap-3 justify-items-center">
+                      {WHITE_PRESETS.map(({ label, mireds }) => (
+                        <button
+                          key={mireds}
+                          aria-label={`${label} (${Math.round(1000000 / mireds)}K)`}
+                          onClick={() => handleTempClick(mireds)}
+                          className="flex flex-col items-center gap-1.5 touch-manipulation active:scale-90 transition-transform"
+                        >
+                          <div
+                            className={`w-10 h-10 ${
+                              selectedTemp === mireds
+                                ? 'border-3 border-yellow-400 ring-2 ring-yellow-400'
+                                : 'border-3 border-foreground dark:border-ring'
+                            }`}
+                            style={{ backgroundColor: miredsToApproxColor(mireds) }}
+                          />
+                          <span className="text-[9px] text-muted-foreground">{label}</span>
+                        </button>
+                      ))}
                     </div>
-                    <Slider
-                      value={[ctSlider]}
-                      min={capabilities.color_temp_min}
-                      max={capabilities.color_temp_max}
-                      step={1}
-                      trackBg="bg-amber-300"
-                      onValueChange={(val: number[]) => {
-                        ctDragging.current = true;
-                        setCtSlider(val[0]);
-                      }}
-                      onValueCommit={(val: number[]) => {
-                        ctDragging.current = false;
-                        onColorTempChange(val[0]);
-                      }}
-                    />
                   </div>
                 )}
               </div>
@@ -179,4 +233,13 @@ export function ColorPickerModal({
   );
 
   return createPortal(content, document.body);
+}
+
+/** Approximate mireds → display color for the swatch preview */
+function miredsToApproxColor(mireds: number): string {
+  if (mireds >= 450) return '#FF9329'; // Candle / very warm
+  if (mireds >= 330) return '#FFC58F'; // Warm white
+  if (mireds >= 230) return '#FFF1E0'; // Neutral
+  if (mireds >= 180) return '#F5F3FF'; // Cool
+  return '#CAE2FF';                     // Daylight / blue-white
 }
