@@ -7,9 +7,10 @@ interface AppListProps {
   loading?: boolean;
   launchingApp: string | null;
   onLaunchApp: (app: string) => void;
+  offline?: boolean;
 }
 
-export function AppList({ apps, loading, launchingApp, onLaunchApp }: AppListProps) {
+export function AppList({ apps, loading, launchingApp, onLaunchApp, offline }: AppListProps) {
   if (loading) {
     return (
       <div className="divide-y divide-dashed divide-muted-foreground/30">
@@ -22,12 +23,14 @@ export function AppList({ apps, loading, launchingApp, onLaunchApp }: AppListPro
     );
   }
 
-  if (apps.length === 0) {
+  if (offline || apps.length === 0) {
     return (
       <Empty className="py-8">
-        <EmptyTitle>Couldn't Load Apps</EmptyTitle>
+        <EmptyTitle>{offline ? 'Server Offline' : "Couldn't Load Apps"}</EmptyTitle>
         <EmptyDescription>
-          Make sure Sunshine is running on the gaming PC.
+          {offline
+            ? 'Turn on the gaming PC to start streaming.'
+            : 'Make sure Sunshine is running on the gaming PC.'}
         </EmptyDescription>
       </Empty>
     );

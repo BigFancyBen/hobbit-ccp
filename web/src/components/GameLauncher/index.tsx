@@ -40,6 +40,7 @@ export function GamesPage() {
               loading={initialLoading}
               launchingApp={loading}
               onLaunchApp={launchApp}
+              offline={!status.sunshineOnline}
             />
           )}
         </CardContent>
