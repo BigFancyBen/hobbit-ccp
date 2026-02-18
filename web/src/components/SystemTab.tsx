@@ -36,8 +36,8 @@ function ControllerIcon() {
   );
 }
 
-function ControllerSlot({ index, label }: { index: number; label: string | null }) {
-  const active = label !== null;
+function ControllerSlot({ index, color }: { index: number; color: string | null }) {
+  const active = color !== null;
   return (
     <div
       className={`flex items-center gap-2 rounded border-2 px-3 py-2 ${
@@ -45,15 +45,17 @@ function ControllerSlot({ index, label }: { index: number; label: string | null 
           ? 'border-primary bg-primary/10'
           : 'border-muted bg-muted/30'
       }`}
+      style={active && color ? { borderColor: color, backgroundColor: `${color}1a` } : undefined}
     >
-      <ControllerIcon />
+      {active && color ? (
+        <span className="inline-block size-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
+      ) : (
+        <ControllerIcon />
+      )}
       <div className="min-w-0 flex-1">
         <p className={`text-[10px] retro font-semibold ${active ? 'text-foreground' : 'text-muted-foreground'}`}>
-          {active ? `P${index + 1} \u00B7 ${label.toUpperCase()}` : 'EMPTY'}
+          {active ? `P${index + 1}` : 'EMPTY'}
         </p>
-        {active && (
-          <p className="text-[9px] retro text-primary">CONNECTED</p>
-        )}
       </div>
     </div>
   );
@@ -107,7 +109,7 @@ function ControllersSection() {
         </div>
         <div className="grid grid-cols-2 gap-2">
           {[0, 1, 2, 3].map(i => (
-            <ControllerSlot key={i} index={i} label={controllers[i]?.label ?? null} />
+            <ControllerSlot key={i} index={i} color={controllers[i]?.color ?? null} />
           ))}
         </div>
       </CardContent>

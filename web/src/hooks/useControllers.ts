@@ -6,7 +6,7 @@ const CACHE_KEY = 'controllers';
 
 interface Controller {
   serial: string;
-  label: string;
+  color: string | null;
 }
 
 interface ControllerState {

@@ -532,8 +532,8 @@ app.get('/disk-stats', (req, res) => {
 });
 
 // Xbox controller dongle status — reads sysfs (instant, no lazy monitor needed)
-const CONTROLLER_LABELS = {
-  '0MGT0097602541': 'Green',
+const CONTROLLER_COLORS = {
+  '0MGT0097602541': '#22c55e',
 };
 
 function getControllerStatus() {
@@ -555,7 +555,7 @@ function getControllerStatus() {
       const uniqMatch = block.match(/Uniq=(\S+)/);
       if (uniqMatch && uniqMatch[1]) {
         const serial = uniqMatch[1];
-        controllers.push({ serial, label: CONTROLLER_LABELS[serial] || serial });
+        controllers.push({ serial, color: CONTROLLER_COLORS[serial] || null });
       }
     }
   } catch {}
