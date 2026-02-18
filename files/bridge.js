@@ -12,7 +12,7 @@ const GAMING_PC_PORT = 21675;
 const GAMING_PC = `${GAMING_PC_IP}:${GAMING_PC_PORT}`;
 
 // Cached app list - refreshed on-demand when stale
-let cachedApps = ['Desktop'];
+let cachedApps = [];
 let lastAppRefresh = 0;
 let appRefreshInProgress = false;
 const APP_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
