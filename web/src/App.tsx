@@ -31,10 +31,11 @@ function App() {
   const pageKey = currentIndex === 0 ? 'lights' : 'games';
 
   const pageTransition = useTransition(pageKey, {
-    from: { opacity: 0, x: direction * 60 },
-    enter: { opacity: 1, x: 0 },
+    from: { opacity: 0, x: direction * 60, position: 'relative' as const },
+    enter: { opacity: 1, x: 0, position: 'relative' as const },
     leave: { opacity: 0, x: -direction * 60, position: 'absolute' as const },
     config: { tension: 300, friction: 26 },
+    expires: 0,
   });
 
   const handleReboot = async () => {
