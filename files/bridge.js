@@ -532,8 +532,9 @@ app.get('/disk-stats', (req, res) => {
 });
 
 // Xbox controller dongle status — reads sysfs (instant, no lazy monitor needed)
-const CONTROLLER_COLORS = {
-  '0MGT0097602541': '#22c55e',
+const KNOWN_CONTROLLERS = {
+  '0MGT0097602541': { color: '#22c55e', label: 'Green' },
+  '0MFG0029213548': { color: '#ec4899', label: 'Pink' },
 };
 
 function getControllerStatus() {
@@ -546,19 +547,28 @@ function getControllerStatus() {
   try { pairing = fs.readFileSync(`${p}/pairing`, 'utf8').trim() === '1'; } catch {}
 
   // Parse /proc/bus/input/devices for connected Xbox controller serials
-  const controllers = [];
+  const connectedSerials = new Set();
   try {
     const raw = fs.readFileSync('/proc/bus/input/devices', 'utf8');
     const blocks = raw.split('\n\n');
     for (const block of blocks) {
       if (!block.includes('Name="Microsoft Xbox Controller"')) continue;
       const uniqMatch = block.match(/Uniq=(\S+)/);
-      if (uniqMatch && uniqMatch[1]) {
-        const serial = uniqMatch[1];
-        controllers.push({ serial, color: CONTROLLER_COLORS[serial] || null });
-      }
+      if (uniqMatch && uniqMatch[1]) connectedSerials.add(uniqMatch[1]);
     }
   } catch {}
+
+  // Build list: known controllers (connected or not) + unknown-but-connected
+  const controllers = [];
+  for (const [serial, info] of Object.entries(KNOWN_CONTROLLERS)) {
+    controllers.push({ serial, color: info.color, label: info.label, connected: connectedSerials.has(serial) });
+    connectedSerials.delete(serial);
+  }
+  for (const serial of connectedSerials) {
+    controllers.push({ serial, color: null, label: null, connected: true });
+  }
+  // Sort: connected first, then disconnected
+  controllers.sort((a, b) => (b.connected ? 1 : 0) - (a.connected ? 1 : 0));
 
   return { dongleConnected: true, controllers, pairing };
 }

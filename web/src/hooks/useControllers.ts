@@ -4,9 +4,11 @@ import { getCache, setCache } from '@/lib/cache';
 const API_BASE = '/api/control';
 const CACHE_KEY = 'controllers';
 
-interface Controller {
+export interface Controller {
   serial: string;
   color: string | null;
+  label: string | null;
+  connected: boolean;
 }
 
 interface ControllerState {

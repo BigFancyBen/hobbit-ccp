@@ -5,7 +5,7 @@ import { Card, CardContent } from '@hobbit/ui/8bit/card';
 import { Badge } from '@hobbit/ui/8bit/badge';
 import { Skeleton } from '@hobbit/ui/8bit/skeleton';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { useControllers } from '@/hooks/useControllers';
+import { useControllers, type Controller } from '@/hooks/useControllers';
 
 function ControllerIcon() {
   return (
@@ -36,27 +36,35 @@ function ControllerIcon() {
   );
 }
 
-function ControllerSlot({ index, color }: { index: number; color: string | null }) {
-  const active = color !== null;
+function EmptySlot({ index }: { index: number }) {
   return (
-    <div
-      className={`flex items-center gap-2 rounded border-2 px-3 py-2 ${
-        active
-          ? 'border-primary bg-primary/10'
-          : 'border-muted bg-muted/30'
-      }`}
-      style={active && color ? { borderColor: color, backgroundColor: `${color}1a` } : undefined}
-    >
-      {active && color ? (
+    <div className="flex items-center gap-2 rounded border-2 border-muted bg-muted/30 px-3 py-2">
+      <ControllerIcon />
+      <p className="text-[10px] retro font-semibold text-muted-foreground">EMPTY</p>
+    </div>
+  );
+}
+
+function ControllerSlot({ controller, index }: { controller: Controller; index: number }) {
+  const { color, connected } = controller;
+
+  if (connected && color) {
+    return (
+      <div
+        className="flex items-center gap-2 rounded border-2 px-3 py-2"
+        style={{ borderColor: color, backgroundColor: `${color}1a` }}
+      >
         <span className="inline-block size-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
-      ) : (
-        <ControllerIcon />
-      )}
-      <div className="min-w-0 flex-1">
-        <p className={`text-[10px] retro font-semibold ${active ? 'text-foreground' : 'text-muted-foreground'}`}>
-          {active ? `P${index + 1}` : 'EMPTY'}
-        </p>
+        <p className="text-[10px] retro font-semibold text-foreground">{`P${index + 1}`}</p>
       </div>
+    );
+  }
+
+  // Connected + unknown color
+  return (
+    <div className="flex items-center gap-2 rounded border-2 border-primary bg-primary/10 px-3 py-2">
+      <ControllerIcon />
+      <p className="text-[10px] retro font-semibold text-foreground">{`P${index + 1}`}</p>
     </div>
   );
 }
@@ -108,9 +116,12 @@ function ControllersSection() {
           )}
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {[0, 1, 2, 3].map(i => (
-            <ControllerSlot key={i} index={i} color={controllers[i]?.color ?? null} />
-          ))}
+          {[0, 1, 2, 3].map(i => {
+            const c = controllers.filter(c => c.connected)[i];
+            return c
+              ? <ControllerSlot key={c.serial} controller={c} index={i} />
+              : <EmptySlot key={i} index={i} />;
+          })}
         </div>
       </CardContent>
     </Card>
