@@ -6,7 +6,7 @@ SilverBullet is a markdown-based wiki/note-taking app running as a Docker contai
 
 - **URL**: `https://hobbit.house/sb`
 - **Credentials**: Configured via `sb_user` in `group_vars/all.yml` (default: `hobbit:changeme`)
-- **IP restriction**: Accessible from 192.168.0.70, 192.168.0.69, and Tailscale peers (100.64.0.0/10) — configured in `nginx.conf`
+- **IP restriction**: Nginx allows specific IPs and the Docker bridge subnet — but since nginx is in Docker, all LAN clients appear as `172.18.0.1`, so password auth (`SB_USER`) is the real access control
 
 ## Architecture
 
@@ -91,12 +91,15 @@ location /sb/ {
     allow 192.168.0.70;
     allow 192.168.0.69;
     allow 100.64.0.0/10;  # All Tailscale peers
+    allow 172.16.0.0/12;  # Docker bridge (real client IP is NATted)
     allow 192.168.0.XX;   # new LAN device
     deny all;
     ...
 }
 ```
 
-Then deploy with `./deploy.sh`.
+Then deploy with `./deploy.sh docker`.
+
+**Docker IP caveat**: Because nginx runs inside Docker, all LAN clients appear as `172.18.0.1` (Docker bridge gateway) rather than their real IP. The `172.16.0.0/12` allow rule is required for any LAN device to access SilverBullet. Device-level IP restriction doesn't work with Docker's default bridge networking — SilverBullet relies on password auth (`SB_USER`) instead.
 
 **Remote devices**: Any device on your Tailscale network (`100.64.0.0/10`) is already allowed. Just install Tailscale and sign in with the same account.

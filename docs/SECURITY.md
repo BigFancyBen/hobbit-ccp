@@ -146,7 +146,7 @@ MQTT (`mosquitto`) is published on `127.0.0.1:1883` in Docker — it never liste
 
 | Feature | Decision | Reason |
 |---------|----------|--------|
-| HTTPS (public CA) | Partial | Tailscale FQDN has a valid Let's Encrypt cert via `tailscale cert`. LAN hostnames use self-signed. |
+| HTTPS (public CA) | Partial | Tailscale FQDN has a valid Let's Encrypt cert via `tailscale cert`. LAN hostnames use self-signed. LAN HTTP is redirected to HTTPS (required for SilverBullet's `crypto.subtle`). |
 | MQTT authentication | Skip | MQTT bound to `127.0.0.1` — unreachable externally. Adds complexity for no benefit. |
 | Zigbee2MQTT frontend auth | Skip | Not natively supported. UFW is sufficient. |
 | fail2ban | Skip | With key-only SSH + LAN firewall, brute force is impossible. |
@@ -165,6 +165,12 @@ Android uses encrypted DNS by default. If you only allow port 53, Android will s
 The dnsmasq `stop-dns-rebind` option blocks DNS responses containing private IPs from upstream servers. This breaks Android's connectivity checks (Google servers).
 
 **Solution:** Don't use `stop-dns-rebind`. The firewall is your primary protection.
+
+### Docker NATs Client IPs in Nginx
+
+Because nginx runs inside Docker with default bridge networking, all external clients appear as `172.18.0.1` (the Docker bridge gateway). This means `allow`/`deny` directives in nginx **cannot distinguish between LAN clients** — they all share the same source IP. The SilverBullet `/sb/` location includes `allow 172.16.0.0/12` to permit Docker-routed traffic, and relies on SilverBullet's built-in password auth (`SB_USER`) for actual access control.
+
+To get real client IPs in nginx, you would need `network_mode: host` on the webserver container (which breaks Docker DNS for inter-container routing).
 
 ### UFW Rules Are Additive
 
@@ -186,7 +192,7 @@ ssh -o PreferredAuthentications=password hobbit@192.168.0.67
 # Expected: "Permission denied"
 
 # Check security headers
-curl -I http://192.168.0.67/ | grep -E "X-Frame|X-Content"
+curl -skI https://192.168.0.67/ | grep -E "X-Frame|X-Content"
 
 # Check unattended-upgrades
 ssh hobbit@192.168.0.67 'systemctl status unattended-upgrades'

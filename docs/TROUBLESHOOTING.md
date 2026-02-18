@@ -22,7 +22,7 @@ sudo ufw allow from 172.16.0.0/12
 
 Check the browser console for errors. The API should be accessible at `/api/control/`:
 ```bash
-curl http://hobbit.local/api/control/status
+curl -sk https://hobbit.local/api/control/status
 ```
 
 ### Can't access hobbit.local
@@ -42,6 +42,20 @@ curl http://hobbit.local/api/control/status
 The `.house` domain requires DNS configuration:
 - Add to your router's local DNS entries, OR
 - Add to your device's hosts file
+
+### SilverBullet shows blank white page
+
+**Cause**: All SilverBullet API/data requests return 403 Forbidden. Because nginx runs inside Docker, all LAN clients appear as `172.18.0.1` (Docker bridge gateway) instead of their real IP. If the `/sb/` allow list doesn't include the Docker bridge subnet, every request after the initial HTML is blocked.
+
+**Fix**: Ensure `172.16.0.0/12` is in the allow list in the `/sb/` location block in `files/nginx.conf`, then deploy:
+```bash
+./deploy.sh docker
+```
+
+**How to diagnose**: Check nginx logs for 403 errors from `172.18.0.1`:
+```bash
+docker logs hobbit-webserver-1 --tail 50 2>&1 | grep "403"
+```
 
 ## Docker Issues
 

@@ -43,13 +43,14 @@ case "$TARGET" in
     echo "[4/4] Verifying deployment..."
     sleep 5
 
-    API_STATUS=$(curl -sf -H "Host: hobbit.local" http://192.168.0.67/api/control/health 2>/dev/null && echo "OK" || echo "FAILED")
-    WEB_STATUS=$(curl -sf -H "Host: hobbit.local" http://192.168.0.67/ >/dev/null 2>&1 && echo "OK" || echo "FAILED")
-    HTTPS_STATUS=$(curl -skf -H "Host: hobbit.local" https://192.168.0.67/ >/dev/null 2>&1 && echo "OK" || echo "FAILED")
+    API_STATUS=$(curl -skf -H "Host: hobbit.local" https://192.168.0.67/api/control/health 2>/dev/null && echo "OK" || echo "FAILED")
+    WEB_STATUS=$(curl -skf -H "Host: hobbit.local" https://192.168.0.67/ >/dev/null 2>&1 && echo "OK" || echo "FAILED")
+    REDIRECT_STATUS=$(curl -so /dev/null -w '%{http_code}' -H "Host: hobbit.local" http://192.168.0.67/ 2>/dev/null)
+    [ "$REDIRECT_STATUS" = "301" ] && HTTPS_REDIRECT="OK" || HTTPS_REDIRECT="FAILED"
 
-    echo "      Bridge API:  $API_STATUS"
-    echo "      Web UI:      $WEB_STATUS"
-    echo "      HTTPS:       $HTTPS_STATUS"
+    echo "      Bridge API:      $API_STATUS"
+    echo "      Web UI (HTTPS):  $WEB_STATUS"
+    echo "      HTTP→HTTPS:      $HTTPS_REDIRECT"
     echo ""
 
     if [ "$API_STATUS" = "OK" ] && [ "$WEB_STATUS" = "OK" ]; then
@@ -95,7 +96,7 @@ case "$TARGET" in
 
     echo "[2/2] Verifying bridge..."
     sleep 3
-    API_STATUS=$(curl -sf -H "Host: hobbit.local" http://192.168.0.67/api/control/health 2>/dev/null && echo "OK" || echo "FAILED")
+    API_STATUS=$(curl -skf -H "Host: hobbit.local" https://192.168.0.67/api/control/health 2>/dev/null && echo "OK" || echo "FAILED")
     echo "      Bridge API:  $API_STATUS"
     echo ""
 

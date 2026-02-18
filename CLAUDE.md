@@ -10,12 +10,14 @@ Hobbit Mini PC Setup — transforms a Peladn mini PC into a hybrid LAN gaming de
 
 ```
 Phone/Browser → Nginx (Docker, port 80/443) → React SPA (static files)
-                                             → /api/control/* → Bridge (host, port 3001)
-                                             → /zigbee/*      → Zigbee2MQTT (Docker, 8080)
-                                             → /sb/*          → SilverBullet (Docker, 3000)
+               HTTP 301 → HTTPS               → /api/control/* → Bridge (host, port 3001)
+                                               → /zigbee/*      → Zigbee2MQTT (Docker, 8080)
+                                               → /sb/*          → SilverBullet (Docker, 3000)
 
 Also running: Mosquitto MQTT (Docker, 127.0.0.1:1883), dnsmasq (host), Tailscale (host)
 ```
+
+LAN HTTP requests are redirected to HTTPS (self-signed cert). Tailscale uses a valid Let's Encrypt cert.
 
 The bridge runs on the host (not in Docker) because it needs direct access to `/proc`, X11, HDMI control, and other system-level operations.
 
