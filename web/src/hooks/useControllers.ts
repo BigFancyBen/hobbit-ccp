@@ -9,6 +9,7 @@ export interface Controller {
   color: string | null;
   label: string | null;
   connected: boolean;
+  playerIndex: number | null;
 }
 
 interface ControllerState {

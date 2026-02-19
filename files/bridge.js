@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { exec, spawn } = require('child_process');
+const { exec, execFile, spawn } = require('child_process');
 const app = express();
 
 app.use(cors());
@@ -86,7 +86,7 @@ app.post('/launch-moonlight', (req, res) => {
     exec('sudo /usr/local/bin/hdmi-control.sh on', () => {
       // Launch X with openbox window manager for proper fullscreen handling
       // Stream at 1080p to match monitor, openbox handles window maximization
-      const cmd = `sudo xinit /bin/sh -c 'xhost +local: && xrandr --output HDMI-2 --mode 1920x1080 && openbox --sm-disable &
+      const cmd = `sudo xinit /bin/sh -c 'xhost +local: && xrandr --output HDMI-2 --mode 1920x1080 && openbox --sm-disable --config-file /home/hobbit/openbox-rc.xml &
 sleep 1 && su hobbit -c "DISPLAY=:0 moonlight stream ${GAMING_PC} \\"${appName}\\" --1080 --fps 60 --display-mode fullscreen"' -- :0 vt7`;
 
       const child = spawn('sh', ['-c', cmd], {
@@ -546,34 +546,149 @@ function getControllerStatus() {
   let pairing = false;
   try { pairing = fs.readFileSync(`${p}/pairing`, 'utf8').trim() === '1'; } catch {}
 
-  // Parse /proc/bus/input/devices for connected Xbox controller serials
-  const connectedSerials = new Set();
+  // Parse /proc/bus/input/devices for connected Xbox controller serials + js index
+  const connectedSerials = new Map(); // serial → jsIndex
   try {
     const raw = fs.readFileSync('/proc/bus/input/devices', 'utf8');
     const blocks = raw.split('\n\n');
     for (const block of blocks) {
       if (!block.includes('Name="Microsoft Xbox Controller"')) continue;
       const uniqMatch = block.match(/Uniq=(\S+)/);
-      if (uniqMatch && uniqMatch[1]) connectedSerials.add(uniqMatch[1]);
+      const jsMatch = block.match(/Handlers=.*\bjs(\d+)\b/);
+      if (uniqMatch?.[1] && jsMatch) {
+        connectedSerials.set(uniqMatch[1], parseInt(jsMatch[1], 10));
+      }
     }
   } catch {}
 
   // Build list: known controllers (connected or not) + unknown-but-connected
   const controllers = [];
   for (const [serial, info] of Object.entries(KNOWN_CONTROLLERS)) {
-    controllers.push({ serial, color: info.color, label: info.label, connected: connectedSerials.has(serial) });
+    const jsIndex = connectedSerials.get(serial);
+    const connected = jsIndex !== undefined;
+    controllers.push({ serial, color: info.color, label: info.label, connected, playerIndex: jsIndex ?? null });
     connectedSerials.delete(serial);
   }
-  for (const serial of connectedSerials) {
-    controllers.push({ serial, color: null, label: null, connected: true });
+  for (const [serial, jsIndex] of connectedSerials) {
+    controllers.push({ serial, color: null, label: null, connected: true, playerIndex: jsIndex });
   }
-  // Sort: connected first, then disconnected
-  controllers.sort((a, b) => (b.connected ? 1 : 0) - (a.connected ? 1 : 0));
+  // Sort by playerIndex (connected first by js order, then disconnected)
+  controllers.sort((a, b) => {
+    if (a.connected !== b.connected) return a.connected ? -1 : 1;
+    if (a.connected) return (a.playerIndex ?? 99) - (b.playerIndex ?? 99);
+    return 0;
+  });
 
   return { dongleConnected: true, controllers, pairing };
 }
 
 app.get('/controllers', (req, res) => res.json(getControllerStatus()));
+
+// ============================================================
+// Virtual Input — xdotool injection for gaming mode
+// ============================================================
+const XDOTOOL_ENV = { DISPLAY: ':0' };
+
+function requireGaming(req, res, next) {
+  exec('pgrep -x Xorg', (err) => {
+    if (err) return res.status(400).json({ error: 'Not in gaming mode' });
+    next();
+  });
+}
+
+// Relative mouse move
+app.post('/input/move', requireGaming, (req, res) => {
+  let { dx, dy } = req.body;
+  if (typeof dx !== 'number' || typeof dy !== 'number') {
+    return res.status(400).json({ error: 'dx and dy must be numbers' });
+  }
+  dx = Math.round(Math.max(-2000, Math.min(2000, dx)));
+  dy = Math.round(Math.max(-2000, Math.min(2000, dy)));
+  execFile('xdotool', ['mousemove_relative', '--', String(dx), String(dy)], { env: XDOTOOL_ENV }, (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ status: 'ok' });
+  });
+});
+
+// Mouse click
+app.post('/input/click', requireGaming, (req, res) => {
+  const { button } = req.body;
+  if (![1, 2, 3].includes(button)) {
+    return res.status(400).json({ error: 'button must be 1, 2, or 3' });
+  }
+  execFile('xdotool', ['click', String(button)], { env: XDOTOOL_ENV }, (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ status: 'ok' });
+  });
+});
+
+// Mouse button down/up (for click-and-drag)
+app.post('/input/mousedown', requireGaming, (req, res) => {
+  const { button } = req.body;
+  if (![1, 2, 3].includes(button)) {
+    return res.status(400).json({ error: 'button must be 1, 2, or 3' });
+  }
+  execFile('xdotool', ['mousedown', String(button)], { env: XDOTOOL_ENV }, (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ status: 'ok' });
+  });
+});
+
+app.post('/input/mouseup', requireGaming, (req, res) => {
+  const { button } = req.body;
+  if (![1, 2, 3].includes(button)) {
+    return res.status(400).json({ error: 'button must be 1, 2, or 3' });
+  }
+  execFile('xdotool', ['mouseup', String(button)], { env: XDOTOOL_ENV }, (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ status: 'ok' });
+  });
+});
+
+// Scroll (positive=down, negative=up)
+app.post('/input/scroll', requireGaming, (req, res) => {
+  let { dy } = req.body;
+  if (typeof dy !== 'number') return res.status(400).json({ error: 'dy must be a number' });
+  dy = Math.round(Math.max(-20, Math.min(20, dy)));
+  if (dy === 0) return res.json({ status: 'ok' });
+  const btn = dy > 0 ? '5' : '4';
+  const clicks = Math.abs(dy);
+  const args = ['click', '--repeat', String(clicks), btn];
+  execFile('xdotool', args, { env: XDOTOOL_ENV }, (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ status: 'ok' });
+  });
+});
+
+// Key press (whitelisted keys only)
+const ALLOWED_KEYS = new Set([
+  'Escape', 'Return', 'Tab', 'space', 'BackSpace',
+  'Up', 'Down', 'Left', 'Right', 'End',
+  'alt+Tab', 'super',
+]);
+
+app.post('/input/key', requireGaming, (req, res) => {
+  const { key } = req.body;
+  if (!ALLOWED_KEYS.has(key)) {
+    return res.status(400).json({ error: 'Key not allowed' });
+  }
+  execFile('xdotool', ['key', key], { env: XDOTOOL_ENV }, (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ status: 'ok' });
+  });
+});
+
+// Type text string
+app.post('/input/type', requireGaming, (req, res) => {
+  const { text } = req.body;
+  if (!text || typeof text !== 'string' || text.length > 100) {
+    return res.status(400).json({ error: 'text must be 1-100 characters' });
+  }
+  execFile('xdotool', ['type', '--clearmodifiers', '--', text], { env: XDOTOOL_ENV }, (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ status: 'ok' });
+  });
+});
 
 // ============================================================
 // Zigbee Lights — MQTT-based control for livingroom group

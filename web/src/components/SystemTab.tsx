@@ -45,8 +45,9 @@ function EmptySlot({ index }: { index: number }) {
   );
 }
 
-function ControllerSlot({ controller, index }: { controller: Controller; index: number }) {
-  const { color, connected } = controller;
+function ControllerSlot({ controller }: { controller: Controller }) {
+  const { color, connected, playerIndex } = controller;
+  const label = `P${(playerIndex ?? 0) + 1}`;
 
   if (connected && color) {
     return (
@@ -55,7 +56,7 @@ function ControllerSlot({ controller, index }: { controller: Controller; index: 
         style={{ borderColor: color, backgroundColor: `${color}1a` }}
       >
         <span className="inline-block size-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
-        <p className="text-[10px] retro font-semibold text-foreground">{`P${index + 1}`}</p>
+        <p className="text-[10px] retro font-semibold text-foreground">{label}</p>
       </div>
     );
   }
@@ -64,7 +65,7 @@ function ControllerSlot({ controller, index }: { controller: Controller; index: 
   return (
     <div className="flex items-center gap-2 rounded border-2 border-primary bg-primary/10 px-3 py-2">
       <ControllerIcon />
-      <p className="text-[10px] retro font-semibold text-foreground">{`P${index + 1}`}</p>
+      <p className="text-[10px] retro font-semibold text-foreground">{label}</p>
     </div>
   );
 }
@@ -117,9 +118,9 @@ function ControllersSection() {
         </div>
         <div className="grid grid-cols-2 gap-2">
           {[0, 1, 2, 3].map(i => {
-            const c = controllers.filter(c => c.connected)[i];
+            const c = controllers.find(c => c.connected && c.playerIndex === i);
             return c
-              ? <ControllerSlot key={c.serial} controller={c} index={i} />
+              ? <ControllerSlot key={c.serial} controller={c} />
               : <EmptySlot key={i} index={i} />;
           })}
         </div>

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@hobbit/ui/8bit/card';
 import { StatusBadge } from './StatusBadge';
 import { AppList } from './AppList';
 import { ExitButton } from './ExitButton';
+import { VirtualInput } from './VirtualInput';
 import { useGaming } from '@/hooks/useGaming';
 
 export function GamesPage() {
@@ -28,7 +29,8 @@ export function GamesPage() {
         </CardHeader>
         <CardContent className="px-0 pt-2">
           {isGaming ? (
-            <div className="px-4">
+            <div className="px-4 flex flex-col gap-3">
+              <VirtualInput />
               <ExitButton
                 onExit={exitGaming}
                 loading={loading === 'exit'}

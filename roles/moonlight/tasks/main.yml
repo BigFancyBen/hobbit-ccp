@@ -9,7 +9,16 @@
       - openbox
       - ddcutil
       - xvfb
+      - xdotool
     state: present
+
+- name: Copy minimal openbox config (no keybindings)
+  copy:
+    src: ../../files/openbox-rc.xml
+    dest: /home/hobbit/openbox-rc.xml
+    owner: hobbit
+    group: hobbit
+    mode: '0644'
 
 - name: Download Moonlight AppImage
   get_url:
