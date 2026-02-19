@@ -205,9 +205,9 @@
       notify: Restart docker services
       tags: [docker]
 
-    - name: Copy bridge service file
-      copy:
-        src: ../files/hobbit-bridge.service
+    - name: Template bridge service file
+      template:
+        src: ../files/hobbit-bridge.service.j2
         dest: /etc/systemd/system/hobbit-bridge.service
       notify:
         - Reload systemd

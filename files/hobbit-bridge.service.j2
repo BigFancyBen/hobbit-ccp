@@ -11,6 +11,9 @@ Restart=always
 RestartSec=5
 Environment=NODE_ENV=production
 Environment=GAMING_PC_HOST=192.168.0.69
+Environment=SPOTIFY_CLIENT_ID={{ spotify_client_id }}
+Environment=SPOTIFY_CLIENT_SECRET={{ spotify_client_secret }}
+Environment=SPOTIFY_REDIRECT_URI=https://{{ tailscale_fqdn }}/api/control/spotify/callback
 
 [Install]
 WantedBy=multi-user.target

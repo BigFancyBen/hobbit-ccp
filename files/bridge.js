@@ -965,6 +965,345 @@ app.post('/lights/:id/set', async (req, res) => {
   res.json({ status: 'ok', payload });
 });
 
+// ============================================================
+// Spotify — OAuth, search, and queue endpoints
+// ============================================================
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI;
+const SPOTIFY_TOKEN_FILE = path.join(__dirname, 'spotify-tokens.json');
+
+let spotifyTokens = null; // { access_token, refresh_token, expires_at }
+
+// Spotify response cache — keyed by endpoint string, stores { json, status, ts }
+const spotifyCache = new Map();
+const SPOTIFY_CACHE_TTL = {
+  '/me/player/currently-playing': 5_000,
+  '/me/player/queue': 10_000,
+};
+const SPOTIFY_SEARCH_TTL = 60_000;
+
+function spotifyCacheTtl(endpoint) {
+  for (const [prefix, ttl] of Object.entries(SPOTIFY_CACHE_TTL)) {
+    if (endpoint.startsWith(prefix)) return ttl;
+  }
+  if (endpoint.startsWith('/search')) return SPOTIFY_SEARCH_TTL;
+  return 0;
+}
+
+// Load persisted tokens on startup
+try {
+  spotifyTokens = JSON.parse(fs.readFileSync(SPOTIFY_TOKEN_FILE, 'utf8'));
+  console.log('Loaded Spotify tokens from disk');
+} catch {
+  // No saved tokens yet
+}
+
+function saveSpotifyTokens() {
+  try {
+    fs.writeFileSync(SPOTIFY_TOKEN_FILE, JSON.stringify(spotifyTokens, null, 2));
+  } catch (e) {
+    console.error('Failed to save Spotify tokens:', e.message);
+  }
+}
+
+async function getSpotifyToken() {
+  if (!spotifyTokens?.refresh_token) throw new Error('Not authenticated');
+  // Return existing token if still valid (with 60s buffer)
+  if (spotifyTokens.access_token && spotifyTokens.expires_at > Date.now() + 60000) {
+    return spotifyTokens.access_token;
+  }
+  // Refresh the token
+  const params = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: spotifyTokens.refresh_token,
+  });
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: 'Basic ' + Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64'),
+    },
+    body: params.toString(),
+  });
+  if (!res.ok) throw new Error('Token refresh failed');
+  const data = await res.json();
+  spotifyTokens.access_token = data.access_token;
+  if (data.refresh_token) spotifyTokens.refresh_token = data.refresh_token;
+  spotifyTokens.expires_at = Date.now() + data.expires_in * 1000;
+  saveSpotifyTokens();
+  return spotifyTokens.access_token;
+}
+
+async function spotifyApi(endpoint, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const ttl = method === 'GET' ? spotifyCacheTtl(endpoint) : 0;
+
+  if (ttl > 0) {
+    const cached = spotifyCache.get(endpoint);
+    if (cached && Date.now() - cached.ts < ttl) {
+      return { ok: true, status: cached.status, json: async () => cached.json };
+    }
+  }
+
+  const token = await getSpotifyToken();
+  const res = await fetch(`https://api.spotify.com/v1${endpoint}`, {
+    ...options,
+    headers: { Authorization: `Bearer ${token}`, ...options.headers },
+  });
+
+  if (ttl > 0 && res.status === 200) {
+    const json = await res.json();
+    spotifyCache.set(endpoint, { json, status: res.status, ts: Date.now() });
+    return { ok: true, status: res.status, json: async () => json };
+  }
+
+  return res;
+}
+
+// Build Spotify redirect URI from the incoming request's Host header
+// so auth works from both hobbit.house (LAN) and the Tailscale FQDN.
+// Both must be registered in the Spotify app dashboard.
+function spotifyRedirectUri(req) {
+  const host = req.get('host') || req.hostname;
+  const proto = req.get('x-forwarded-proto') || req.protocol;
+  return `${proto}://${host}/api/control/spotify/callback`;
+}
+
+// OAuth: redirect to Spotify authorize page
+app.get('/spotify/auth', (req, res) => {
+  if (!SPOTIFY_CLIENT_ID) return res.status(500).json({ error: 'Spotify not configured' });
+  const state = Math.random().toString(36).substring(2, 15);
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: SPOTIFY_CLIENT_ID,
+    scope: 'user-modify-playback-state user-read-playback-state user-read-recently-played',
+    redirect_uri: spotifyRedirectUri(req),
+    state,
+  });
+  res.redirect(`https://accounts.spotify.com/authorize?${params}`);
+});
+
+// OAuth: exchange authorization code for tokens
+app.get('/spotify/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error) return res.redirect('/tunes');
+  if (!code) return res.status(400).json({ error: 'No code provided' });
+
+  try {
+    const redirectUri = spotifyRedirectUri(req);
+    const params = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri,
+    });
+    const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: 'Basic ' + Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64'),
+      },
+      body: params.toString(),
+    });
+    if (!tokenRes.ok) {
+      const err = await tokenRes.text();
+      console.error('Spotify token exchange failed:', err);
+      return res.redirect('/tunes');
+    }
+    const data = await tokenRes.json();
+    spotifyTokens = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: Date.now() + data.expires_in * 1000,
+    };
+    saveSpotifyTokens();
+    console.log('Spotify authenticated successfully');
+    res.redirect('/tunes');
+  } catch (e) {
+    console.error('Spotify callback error:', e.message);
+    res.redirect('/tunes');
+  }
+});
+
+// Auth status
+app.get('/spotify/status', (req, res) => {
+  res.json({ authenticated: !!(spotifyTokens?.refresh_token) });
+});
+
+// Logout
+app.post('/spotify/logout', (req, res) => {
+  spotifyTokens = null;
+  try { fs.unlinkSync(SPOTIFY_TOKEN_FILE); } catch {}
+  res.json({ status: 'ok' });
+});
+
+// Search tracks
+app.get('/spotify/search', async (req, res) => {
+  const q = req.query.q;
+  if (!q) return res.status(400).json({ error: 'Missing query' });
+  try {
+    const spotRes = await spotifyApi(`/search?q=${encodeURIComponent(q)}&type=track&limit=10`);
+    if (!spotRes.ok) return res.status(spotRes.status).json({ error: 'Spotify search failed' });
+    const data = await spotRes.json();
+    const tracks = (data.tracks?.items || []).map(t => ({
+      id: t.id,
+      name: t.name,
+      artist: t.artists.map(a => a.name).join(', '),
+      album: t.album.name,
+      albumArt: t.album.images?.find(i => i.width <= 100)?.url || t.album.images?.[0]?.url || '',
+      uri: t.uri,
+    }));
+    res.json({ tracks });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Queue a single track by URI
+app.post('/spotify/queue', async (req, res) => {
+  const { uri } = req.body;
+  if (!uri) return res.status(400).json({ error: 'Missing uri' });
+  try {
+    const spotRes = await spotifyApi(`/me/player/queue?uri=${encodeURIComponent(uri)}`, { method: 'POST' });
+    if (spotRes.status === 404) {
+      return res.status(404).json({ error: 'No active Spotify player. Start playing a song first.' });
+    }
+    if (!spotRes.ok) {
+      const err = await spotRes.text();
+      return res.status(spotRes.status).json({ error: err || 'Failed to queue' });
+    }
+    for (const key of spotifyCache.keys()) {
+      if (key.startsWith('/me/player')) spotifyCache.delete(key);
+    }
+    res.json({ status: 'ok' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Queue from a Spotify link (track, album, or playlist)
+app.post('/spotify/queue-link', async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'Missing url' });
+
+  // Parse Spotify URL: https://open.spotify.com/{type}/{id}?...
+  const match = url.match(/open\.spotify\.com\/(track|album|playlist)\/([a-zA-Z0-9]+)/);
+  if (!match) return res.status(400).json({ error: 'Invalid Spotify URL' });
+
+  const [, type, id] = match;
+
+  try {
+    if (type === 'track') {
+      const uri = `spotify:track:${id}`;
+      const spotRes = await spotifyApi(`/me/player/queue?uri=${encodeURIComponent(uri)}`, { method: 'POST' });
+      if (spotRes.status === 404) {
+        return res.status(404).json({ error: 'No active Spotify player. Start playing a song first.' });
+      }
+      if (!spotRes.ok) return res.status(spotRes.status).json({ error: 'Failed to queue track' });
+      for (const key of spotifyCache.keys()) {
+        if (key.startsWith('/me/player')) spotifyCache.delete(key);
+      }
+      return res.json({ queued: 1, total: 1 });
+    }
+
+    // Album or playlist — fetch tracks then queue each with delay
+    let tracks = [];
+    if (type === 'album') {
+      const spotRes = await spotifyApi(`/albums/${id}/tracks?limit=50`);
+      if (!spotRes.ok) return res.status(spotRes.status).json({ error: 'Failed to fetch album' });
+      const data = await spotRes.json();
+      tracks = data.items.map(t => t.uri);
+    } else {
+      const spotRes = await spotifyApi(`/playlists/${id}/tracks?limit=50&fields=items(track(uri))`);
+      if (!spotRes.ok) return res.status(spotRes.status).json({ error: 'Failed to fetch playlist' });
+      const data = await spotRes.json();
+      tracks = data.items.map(t => t.track?.uri).filter(Boolean);
+    }
+
+    let queued = 0;
+    for (const uri of tracks) {
+      const qRes = await spotifyApi(`/me/player/queue?uri=${encodeURIComponent(uri)}`, { method: 'POST' });
+      if (qRes.status === 404) {
+        return res.status(404).json({ error: 'No active Spotify player. Start playing a song first.', queued, total: tracks.length });
+      }
+      if (qRes.ok) queued++;
+      // Small delay to avoid rate limits
+      await new Promise(r => setTimeout(r, 100));
+    }
+    for (const key of spotifyCache.keys()) {
+      if (key.startsWith('/me/player')) spotifyCache.delete(key);
+    }
+    res.json({ queued, total: tracks.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get player queue (currently playing + upcoming)
+app.get('/spotify/queue', async (req, res) => {
+  try {
+    const spotRes = await spotifyApi('/me/player/queue');
+    if (!spotRes.ok) return res.status(spotRes.status).json({ error: 'Failed to fetch queue' });
+    const data = await spotRes.json();
+
+    const mapTrack = (t) => t ? {
+      name: t.name,
+      artist: t.artists?.map(a => a.name).join(', ') || '',
+      albumArt: t.album?.images?.find(i => i.width <= 100)?.url || t.album?.images?.[0]?.url || '',
+    } : null;
+
+    res.json({
+      currentlyPlaying: mapTrack(data.currently_playing),
+      queue: (data.queue || []).map(mapTrack).filter(Boolean),
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get currently playing track
+app.get('/spotify/now-playing', async (req, res) => {
+  try {
+    const spotRes = await spotifyApi('/me/player/currently-playing');
+    // 204 = nothing playing
+    if (spotRes.status === 204 || spotRes.status === 202) {
+      return res.json(null);
+    }
+    if (!spotRes.ok) return res.status(spotRes.status).json({ error: 'Failed to fetch now playing' });
+    const data = await spotRes.json();
+    if (!data?.item) return res.json(null);
+    const t = data.item;
+    res.json({
+      name: t.name,
+      artist: t.artists?.map(a => a.name).join(', ') || '',
+      albumArt: t.album?.images?.[0]?.url || '',
+      isPlaying: data.is_playing,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get recently played tracks
+app.get('/spotify/history', async (req, res) => {
+  try {
+    const spotRes = await spotifyApi('/me/player/recently-played?limit=20');
+    if (!spotRes.ok) return res.status(spotRes.status).json({ error: 'Failed to fetch history' });
+    const data = await spotRes.json();
+
+    const tracks = (data.items || []).map(item => ({
+      name: item.track.name,
+      artist: item.track.artists?.map(a => a.name).join(', ') || '',
+      albumArt: item.track.album?.images?.find(i => i.width <= 100)?.url || item.track.album?.images?.[0]?.url || '',
+      playedAt: item.played_at,
+    }));
+
+    res.json({ tracks });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Hobbit Bridge running on port ${PORT}`);

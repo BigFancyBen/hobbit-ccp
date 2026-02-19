@@ -3,6 +3,7 @@ import { useLocation, Link } from 'wouter';
 const TABS = [
   { label: 'Lights', href: '/' },
   { label: 'Games', href: '/games' },
+  { label: 'Tunes', href: '/tunes' },
 ] as const;
 
 export function NavBar() {

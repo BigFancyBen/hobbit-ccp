@@ -5,13 +5,15 @@ import { SettingsModal } from '@/components/SettingsModal';
 import { NavBar } from '@/components/NavBar';
 import { LightControls } from '@/components/LightControls';
 import { GamesPage } from '@/components/GameLauncher';
+import { TunesPage } from '@/components/TunesPage';
 
 const API = '/api/control';
 
-const ROUTES = ['/', '/games'] as const;
+const ROUTES = ['/', '/games', '/tunes'] as const;
 
 function routeIndex(location: string): number {
   if (location === '/games') return 1;
+  if (location === '/tunes') return 2;
   return 0; // '/' and '/lights' both map to index 0
 }
 
@@ -28,7 +30,7 @@ function App() {
   }, [currentIndex]);
 
   // Determine which page key to use (normalize / and /lights to same key)
-  const pageKey = currentIndex === 0 ? 'lights' : 'games';
+  const pageKey = currentIndex === 0 ? 'lights' : currentIndex === 1 ? 'games' : 'tunes';
 
   const pageTransition = useTransition(pageKey, {
     from: { opacity: 0, x: direction * 60, position: 'relative' as const },
@@ -49,12 +51,12 @@ function App() {
   };
 
   // Redirect unknown paths to /
-  if (location !== '/' && location !== '/lights' && location !== '/games') {
+  if (location !== '/' && location !== '/lights' && location !== '/games' && location !== '/tunes') {
     return <Redirect to="/" />;
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6">
+    <div className="min-h-screen p-4 sm:p-6 overflow-x-hidden">
       <div className="max-w-lg mx-auto">
         {/* Header with nav and settings */}
         <header className="flex items-center gap-2 mb-6">
@@ -63,7 +65,7 @@ function App() {
         </header>
 
         {/* Page content with slide transitions */}
-        <div className="relative overflow-x-hidden">
+        <div className="relative">
           {pageTransition((style, key) => (
             <animated.div
               style={{
@@ -75,6 +77,7 @@ function App() {
             >
               {key === 'lights' && <LightControls />}
               {key === 'games' && <GamesPage />}
+              {key === 'tunes' && <TunesPage />}
             </animated.div>
           ))}
         </div>
