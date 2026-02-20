@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from '@hobbit/ui/8bit/toast';
+import { getCache, setCache } from '@/lib/cache';
 
 const API = '/api/control';
 
@@ -135,20 +136,20 @@ interface QueueData {
 }
 
 export function useSpotifyQueue() {
-  const [data, setData] = useState<QueueData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const hasLoaded = useRef(false);
+  const [data, setData] = useState<QueueData | null>(() => getCache('spotify-queue'));
+  const cached = data !== null;
+  const [loading, setLoading] = useState(!cached);
 
   const refetch = useCallback(async () => {
-    if (!hasLoaded.current) setLoading(true);
     try {
       const res = await fetch(`${API}/spotify/queue`);
       if (!res.ok) throw new Error('Failed');
-      setData(await res.json());
+      const json = await res.json();
+      setData(json);
+      setCache('spotify-queue', json);
     } catch {
-      setData(null);
+      // keep previous data — don't wipe on transient errors
     } finally {
-      hasLoaded.current = true;
       setLoading(false);
     }
   }, []);
@@ -197,22 +198,25 @@ interface HistoryData {
 }
 
 export function useSpotifyHistory() {
-  const [data, setData] = useState<HistoryData | null>(null);
+  const [data, setData] = useState<HistoryData | null>(() => getCache('spotify-history'));
+  const cached = data !== null;
   const [loading, setLoading] = useState(false);
 
   const refetch = useCallback(async () => {
-    setLoading(true);
+    if (!cached) setLoading(true);
     try {
       const res = await fetch(`${API}/spotify/history`);
       if (!res.ok) throw new Error('Failed');
-      setData(await res.json());
+      const json = await res.json();
+      setData(json);
+      setCache('spotify-history', json);
     } catch {
-      setData(null);
-      toast('Could not load history');
+      if (!cached) toast('Could not load history');
+      // keep previous data — don't wipe on transient errors
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [cached]);
 
   return { data, loading, refetch };
 }
@@ -222,6 +226,9 @@ interface NowPlayingTrack {
   artist: string;
   albumArt: string;
   isPlaying: boolean;
+  progress_ms: number;
+  duration_ms: number;
+  timestamp: number;
 }
 
 export function useNowPlaying() {
