@@ -174,11 +174,11 @@ export function VirtualInput() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2 flex-1 min-h-0">
       {/* Touchpad */}
       <div
-        className="relative border-2 border-border rounded bg-muted/30 select-none"
-        style={{ height: '55vh', touchAction: 'none' }}
+        className="relative border-2 border-border rounded bg-muted/30 select-none flex-1 min-h-0"
+        style={{ touchAction: 'none' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -189,7 +189,7 @@ export function VirtualInput() {
       </div>
 
       {/* Quick keys */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 shrink-0">
         {QUICK_KEYS.map(({ label, key }) => (
           <Button
             key={key}
@@ -205,7 +205,7 @@ export function VirtualInput() {
       </div>
 
       {/* Keyboard input */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 shrink-0">
         <input
           ref={inputRef}
           type="text"

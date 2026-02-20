@@ -10,7 +10,8 @@ import { useSearch, useQueue, useSpotifyQueue, useSpotifyHistory, useNowPlaying 
 
 const SEARCH_PER_PAGE = 5;
 const MODAL_PER_PAGE = 8;
-const QUEUE_PER_PAGE = 8;
+const ROW_HEIGHT = 56; // px — TrackRow height (h-10 art + p-2 padding)
+const ROW_GAP = 4;     // px — space-y-1
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -249,7 +250,7 @@ function NowPlaying() {
   if (!track) return null;
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded bg-accent/20">
+    <div className="flex items-center gap-3 p-3 rounded bg-accent/20 shrink-0">
       {track.albumArt && (
         <img
           src={track.albumArt}
@@ -274,10 +275,25 @@ export function TunesPage() {
   const { data: queueData, loading: queueLoading } = useSpotifyQueue();
   const [searchPage, setSearchPage] = useState(1);
   const [queuePage, setQueuePage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(6);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const blurTimeout = useRef<ReturnType<typeof setTimeout>>();
   const inputRef = useRef<HTMLDivElement>(null);
+  const trackListRef = useRef<HTMLDivElement>(null);
+
+  // Measure available height for queue tracks
+  useEffect(() => {
+    const el = trackListRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const h = entry.contentRect.height;
+      const count = Math.max(1, Math.floor((h + ROW_GAP) / (ROW_HEIGHT + ROW_GAP)));
+      setVisibleCount(count);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Reset search page when results change
   useEffect(() => {
@@ -291,6 +307,11 @@ export function TunesPage() {
     }
   }, [results, searching]);
 
+  // Reset queue page when visible count changes
+  useEffect(() => {
+    setQueuePage(1);
+  }, [visibleCount]);
+
   const searchTotalPages = Math.ceil(results.length / SEARCH_PER_PAGE);
   const searchPageItems = results.slice(
     (searchPage - 1) * SEARCH_PER_PAGE,
@@ -298,8 +319,8 @@ export function TunesPage() {
   );
 
   const queue = queueData?.queue || [];
-  const queueTotalPages = Math.max(1, Math.ceil(queue.length / QUEUE_PER_PAGE));
-  const queuePageItems = queue.slice((queuePage - 1) * QUEUE_PER_PAGE, queuePage * QUEUE_PER_PAGE);
+  const queueTotalPages = Math.max(1, Math.ceil(queue.length / visibleCount));
+  const queuePageItems = queue.slice((queuePage - 1) * visibleCount, queuePage * visibleCount);
 
   const handleTrackClick = (uri: string, name: string) => {
     queueTrack(uri, name);
@@ -318,9 +339,9 @@ export function TunesPage() {
   };
 
   return (
-    <div className="space-y-4 mx-2">
+    <div className="h-[calc(100dvh-6.5rem)] flex flex-col gap-4 mx-2 overflow-hidden">
       {/* Header row */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between shrink-0">
         <h2 className="text-lg retro">Tunes</h2>
         <Button
           variant="ghost"
@@ -333,7 +354,7 @@ export function TunesPage() {
       </div>
 
       {/* Search combo box */}
-      <div className="relative" ref={inputRef} onBlur={handleBlur} onFocus={handleFocus}>
+      <div className="relative shrink-0" ref={inputRef} onBlur={handleBlur} onFocus={handleFocus}>
         <Input
           type="text"
           value={query}
@@ -390,8 +411,8 @@ export function TunesPage() {
       <NowPlaying />
 
       {/* Inline queue */}
-      <div>
-        <p className="text-xs text-muted-foreground retro mb-2">Up Next</p>
+      <div className="flex-1 min-h-0 flex flex-col">
+        <p className="text-xs text-muted-foreground retro mb-2 shrink-0">Up Next</p>
         {queueLoading && !queueData ? (
           <div className="space-y-1">
             {[...Array(4)].map((_, i) => <TrackRowSkeleton key={i} />)}
@@ -399,17 +420,21 @@ export function TunesPage() {
         ) : queue.length === 0 ? (
           <p className="text-xs text-muted-foreground retro py-4 text-center">Queue is empty</p>
         ) : (
-          <div className="space-y-1">
-            {queuePageItems.map((track, i) => (
-              <TrackRow
-                key={`${queuePage}-${i}`}
-                name={track.name}
-                artist={track.artist}
-                albumArt={track.albumArt}
-              />
-            ))}
-            <Pagination page={queuePage} totalPages={queueTotalPages} onPageChange={setQueuePage} className="pt-2" />
-          </div>
+          <>
+            <div ref={trackListRef} className="flex-1 min-h-0 overflow-hidden">
+              <div className="space-y-1">
+                {queuePageItems.map((track, i) => (
+                  <TrackRow
+                    key={`${queuePage}-${i}`}
+                    name={track.name}
+                    artist={track.artist}
+                    albumArt={track.albumArt}
+                  />
+                ))}
+              </div>
+            </div>
+            <Pagination page={queuePage} totalPages={queueTotalPages} onPageChange={setQueuePage} className="pt-2 shrink-0" />
+          </>
         )}
       </div>
 
