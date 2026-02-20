@@ -26,6 +26,7 @@ interface LightDevice {
   color_hex: string | null;
   color_temp: number | null;
   supports: DeviceSupports;
+  timer: { endsAt: number } | null;
 }
 
 interface LightsData {
@@ -106,7 +107,11 @@ export function useLights(refreshInterval = 5000) {
     setData(prev => prev ? {
       ...prev,
       group: { ...prev.group, state: newState },
-      devices: prev.devices.map(d => ({ ...d, state: newState })),
+      devices: prev.devices.map(d => ({
+        ...d,
+        state: newState,
+        ...(newState === 'OFF' ? { timer: null } : {}),
+      })),
     } : prev);
     inflight.current++; setActing(true);
     try {
@@ -136,7 +141,7 @@ export function useLights(refreshInterval = 5000) {
       return {
         ...prev,
         devices: prev.devices.map(d =>
-          d.id === id ? { ...d, state: newState } : d
+          d.id === id ? { ...d, state: newState, ...(newState === 'OFF' ? { timer: null } : {}) } : d
         ),
       };
     });
@@ -276,6 +281,43 @@ export function useLights(refreshInterval = 5000) {
     }
   }, [data]);
 
+  const setTimer = useCallback(async (id: string, minutes: number) => {
+    const prevData = data;
+    ignoreUntil.current = Date.now() + 3000;
+    // Optimistic update
+    setData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        devices: prev.devices.map(d =>
+          d.id === id ? {
+            ...d,
+            ...(minutes > 0
+              ? { state: 'ON', timer: { endsAt: Date.now() + minutes * 60000 } }
+              : { timer: null }),
+          } : d
+        ),
+      };
+    });
+    inflight.current++; setActing(true);
+    try {
+      const res = await fetch(`${API}/lights/${encodeURIComponent(id)}/timer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration: minutes }),
+      });
+      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); }
+    } catch {
+      ignoreUntil.current = 0; setData(prevData);
+    } finally {
+      if (--inflight.current === 0) setActing(false);
+    }
+  }, [data]);
+
+  const cancelTimer = useCallback(async (id: string) => {
+    return setTimer(id, 0);
+  }, [setTimer]);
+
   return {
     connected: data?.connected ?? false,
     reconnecting: !loading && data !== null && !data.connected,
@@ -297,5 +339,7 @@ export function useLights(refreshInterval = 5000) {
     setGroupColorTemp,
     setLightColor,
     setLightColorTemp,
+    setTimer,
+    cancelTimer,
   };
 }

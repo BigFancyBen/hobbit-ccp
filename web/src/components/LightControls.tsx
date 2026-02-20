@@ -1,13 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Skeleton } from '@hobbit/ui/8bit/skeleton';
 import { Switch } from '@hobbit/ui/8bit/switch';
 import { LightGroupCard } from '@/components/LightGroupCard';
 import { ColorPaletteModal, miredsToApproxColor } from '@/components/ColorPickerModal';
+import { TimerModal } from '@/components/TimerModal';
 import { useLights } from '@/hooks/useLights';
 
 type ColorTarget =
   | { type: 'group'; supports: { color: boolean; color_temp: boolean } }
   | { type: 'device'; id: string; name: string; supports: { color: boolean; color_temp: boolean } };
+
+function TimerCountdown({ endsAt }: { endsAt: number }) {
+  const [remaining, setRemaining] = useState(() => Math.max(0, endsAt - Date.now()));
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    setRemaining(Math.max(0, endsAt - Date.now()));
+    intervalRef.current = setInterval(() => {
+      const r = Math.max(0, endsAt - Date.now());
+      setRemaining(r);
+      if (r <= 0 && intervalRef.current) clearInterval(intervalRef.current);
+    }, 1000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [endsAt]);
+
+  if (remaining <= 0) return null;
+
+  const totalSec = Math.ceil(remaining / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const display = h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${m}:${String(s).padStart(2, '0')}`;
+
+  return <span className="text-[9px] text-muted-foreground tabular-nums retro">{display}</span>;
+}
 
 export function LightControls() {
   const {
@@ -24,9 +52,12 @@ export function LightControls() {
     setGroupColorTemp,
     setLightColor,
     setLightColorTemp,
+    setTimer,
+    cancelTimer,
   } = useLights();
 
   const [colorTarget, setColorTarget] = useState<ColorTarget | null>(null);
+  const [timerTarget, setTimerTarget] = useState<{ id: string; name: string } | null>(null);
   const hasColorControls = capabilities.color || capabilities.color_temp;
 
   if (loading) {
@@ -86,8 +117,14 @@ export function LightControls() {
                       {device.name}
                     </button>
                   ) : (
-                    <span className="text-xs retro">{device.name}</span>
+                    <button
+                      onClick={() => setTimerTarget({ id: device.id, name: device.name })}
+                      className="text-xs retro touch-manipulation active:scale-95 transition-transform text-left"
+                    >
+                      {device.name}
+                    </button>
                   )}
+                  {device.timer && <TimerCountdown endsAt={device.timer.endsAt} />}
                   <Switch
                     className="ml-auto"
                     checked={device.state === 'ON'}
@@ -117,6 +154,15 @@ export function LightControls() {
           if (colorTarget.type === 'group') setGroupColorTemp(mireds);
           else setLightColorTemp(colorTarget.id, mireds);
         }}
+      />
+
+      <TimerModal
+        open={timerTarget !== null}
+        onClose={() => setTimerTarget(null)}
+        deviceName={timerTarget?.name ?? ''}
+        activeTimer={timerTarget ? (devices.find(d => d.id === timerTarget.id)?.timer ?? null) : null}
+        onSetTimer={(minutes) => { if (timerTarget) setTimer(timerTarget.id, minutes); }}
+        onCancelTimer={() => { if (timerTarget) cancelTimer(timerTarget.id); }}
       />
     </div>
   );

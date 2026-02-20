@@ -710,6 +710,32 @@ let lightsState = {
   devices: {} // keyed by friendly_name: { state, brightness }
 };
 
+// Auto-off timers for individual devices — keyed by friendly_name
+const deviceTimers = new Map(); // { timeoutId, endsAt }
+
+function setDeviceTimer(name, ms) {
+  clearDeviceTimer(name);
+  const endsAt = Date.now() + ms;
+  const timeoutId = setTimeout(() => {
+    console.log(`Timer expired for ${name}, turning OFF`);
+    if (mqttClient?.connected) {
+      mqttClient.publish(`zigbee2mqtt/${name}/set`, JSON.stringify({ state: 'OFF' }));
+    }
+    deviceTimers.delete(name);
+  }, ms);
+  deviceTimers.set(name, { timeoutId, endsAt });
+  console.log(`Timer set for ${name}: ${ms / 60000}min (ends at ${new Date(endsAt).toLocaleTimeString()})`);
+}
+
+function clearDeviceTimer(name) {
+  const entry = deviceTimers.get(name);
+  if (entry) {
+    clearTimeout(entry.timeoutId);
+    deviceTimers.delete(name);
+    console.log(`Timer cleared for ${name}`);
+  }
+}
+
 function startLightsMonitor() {
   if (mqttClient) return;
   console.log('Lights MQTT connecting...');
@@ -790,7 +816,11 @@ function startLightsMonitor() {
         if (!lightsState.devices[deviceName]) {
           lightsState.devices[deviceName] = { state: 'OFF', brightness: 0 };
         }
-        if (data.state !== undefined) lightsState.devices[deviceName].state = data.state;
+        if (data.state !== undefined) {
+          lightsState.devices[deviceName].state = data.state;
+          // Auto-cancel timer when device turns OFF (manual toggle, group off, or timer's own echo)
+          if (data.state === 'OFF') clearDeviceTimer(deviceName);
+        }
         if (data.brightness !== undefined) lightsState.devices[deviceName].brightness = data.brightness;
         // Store color_temp from MQTT but NOT color (MQTT sends xy, not hex)
         if (data.color_temp !== undefined) lightsState.devices[deviceName].color_temp = data.color_temp;
@@ -875,6 +905,7 @@ app.get('/lights', async (req, res) => {
     color_hex: lightsState.devices[m.friendly_name]?.color_hex || null,
     color_temp: lightsState.devices[m.friendly_name]?.color_temp || null,
     supports: m.supports,
+    timer: deviceTimers.has(m.friendly_name) ? { endsAt: deviceTimers.get(m.friendly_name).endsAt } : null,
   }));
   res.json({
     connected: mqttClient?.connected || false,
@@ -963,6 +994,33 @@ app.post('/lights/:id/set', async (req, res) => {
 
   mqttClient.publish(`zigbee2mqtt/${id}/set`, JSON.stringify(payload));
   res.json({ status: 'ok', payload });
+});
+
+// POST /lights/:id/timer — set or cancel auto-off timer { duration: <minutes> }
+app.post('/lights/:id/timer', async (req, res) => {
+  touchLights();
+  try {
+    await ensureMqttConnected();
+  } catch {
+    return res.status(503).json({ error: 'MQTT not connected' });
+  }
+  const id = req.params.id;
+  if (!groupMembers.some(m => m.friendly_name === id)) {
+    return res.status(400).json({ error: 'Unknown light' });
+  }
+  const duration = req.body.duration;
+  if (typeof duration !== 'number' || duration < 0) {
+    return res.status(400).json({ error: 'duration must be a non-negative number (minutes)' });
+  }
+  if (duration === 0) {
+    clearDeviceTimer(id);
+    return res.json({ status: 'ok', timer: null });
+  }
+  // Turn device ON and set the auto-off timer
+  mqttClient.publish(`zigbee2mqtt/${id}/set`, JSON.stringify({ state: 'ON' }));
+  setDeviceTimer(id, duration * 60000);
+  const endsAt = deviceTimers.get(id)?.endsAt;
+  res.json({ status: 'ok', timer: { endsAt } });
 });
 
 // ============================================================
