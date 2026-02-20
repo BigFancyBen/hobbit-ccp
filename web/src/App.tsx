@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, Redirect } from 'wouter';
 import { useTransition, animated } from '@react-spring/web';
-import { SettingsModal } from '@/components/SettingsModal';
+import { SettingsModal, type TabKey } from '@/components/SettingsModal';
 import { NavBar } from '@/components/NavBar';
 import { LightControls } from '@/components/LightControls';
 import { GamesPage } from '@/components/GameLauncher';
@@ -21,6 +21,30 @@ function App() {
   const [location] = useLocation();
   const [loading, setLoading] = useState<string | null>(null);
   const prevRouteIndexRef = useRef(routeIndex(location));
+
+  // Settings modal state (controlled for deep linking)
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<TabKey>('system');
+
+  // Deep link: #camera opens settings on camera tab
+  useEffect(() => {
+    function openCamera() {
+      setSettingsTab('camera');
+      setSettingsOpen(true);
+      window.location.hash = '';
+    }
+
+    if (window.location.hash === '#camera') {
+      openCamera();
+    }
+
+    function handleOpenCamera() {
+      openCamera();
+    }
+
+    window.addEventListener('open-camera', handleOpenCamera);
+    return () => window.removeEventListener('open-camera', handleOpenCamera);
+  }, []);
 
   const currentIndex = routeIndex(location);
   const direction = currentIndex > prevRouteIndexRef.current ? 1 : -1;
@@ -62,7 +86,13 @@ function App() {
         <header className="flex items-center gap-2 mb-3">
           <NavBar />
           <div className="ml-auto">
-            <SettingsModal onReboot={handleReboot} loading={loading} />
+            <SettingsModal
+              onReboot={handleReboot}
+              loading={loading}
+              open={settingsOpen}
+              onOpenChange={setSettingsOpen}
+              defaultTab={settingsTab}
+            />
           </div>
         </header>
 

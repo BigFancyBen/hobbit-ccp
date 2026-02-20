@@ -695,20 +695,54 @@ app.post('/input/type', requireGaming, (req, res) => {
 // ============================================================
 const mqtt = require('mqtt');
 
-const LIGHT_GROUP = 'livingroom';
+const LIGHT_GROUPS = ['livingroom', 'kitchen', 'office'];
 const MQTT_URL = 'mqtt://127.0.0.1:1883';
 const LIGHT_IDLE_TIMEOUT = 60000; // Disconnect MQTT after 60s idle
 
 let mqttClient = null;
 let lastLightsRequest = 0;
 let lightsIdleCheck = null;
-let groupMembers = []; // Array of { ieee, friendly_name }
+let groupMembers = {};   // groupName → [{ ieee, friendly_name, supports }]
+let deviceState = {};     // friendly_name → { state, brightness, color_hex, color_temp }
+let lightsState = {};     // groupName → { state, brightness, color_hex, color_temp }
+let allDevices = [];      // cached bridge/devices list
 let subscribedTopics = new Set();
 
-let lightsState = {
-  group: { state: 'OFF', brightness: 0 },
-  devices: {} // keyed by friendly_name: { state, brightness }
-};
+// Initialize each group
+for (const g of LIGHT_GROUPS) {
+  lightsState[g] = { state: 'OFF', brightness: 0 };
+  groupMembers[g] = [];
+}
+
+function extractSupports(device) {
+  const supports = { color: false, color_temp: false, color_temp_min: 150, color_temp_max: 500 };
+  const exposes = device.definition?.exposes || [];
+  for (const expose of exposes) {
+    const features = expose.features || [];
+    for (const f of features) {
+      if (f.name === 'color_xy' || f.name === 'color_hs') supports.color = true;
+      if (f.name === 'color_temp') {
+        supports.color_temp = true;
+        if (f.value_min !== undefined) supports.color_temp_min = f.value_min;
+        if (f.value_max !== undefined) supports.color_temp_max = f.value_max;
+      }
+    }
+  }
+  return supports;
+}
+
+function isLightDevice(device) {
+  if (device.type === 'Coordinator') return false;
+  const exposes = device.definition?.exposes || [];
+  for (const expose of exposes) {
+    if (expose.type === 'light') return true;
+    const features = expose.features || [];
+    for (const f of features) {
+      if (f.name === 'state' || f.name === 'brightness') return true;
+    }
+  }
+  return false;
+}
 
 // Auto-off timers for individual devices — keyed by friendly_name
 const deviceTimers = new Map(); // { timeoutId, endsAt }
@@ -744,8 +778,10 @@ function startLightsMonitor() {
 
   mqttClient.on('connect', () => {
     console.log('Lights MQTT connected');
-    // Subscribe to group state and bridge discovery topics
-    mqttClient.subscribe(`zigbee2mqtt/${LIGHT_GROUP}`, { qos: 0 });
+    // Subscribe to all group topics and bridge discovery topics
+    for (const g of LIGHT_GROUPS) {
+      mqttClient.subscribe(`zigbee2mqtt/${g}`, { qos: 0 });
+    }
     mqttClient.subscribe('zigbee2mqtt/bridge/groups', { qos: 0 });
     mqttClient.subscribe('zigbee2mqtt/bridge/devices', { qos: 0 });
     // Request current groups/devices lists
@@ -758,35 +794,46 @@ function startLightsMonitor() {
 
   function resolveMembers() {
     if (!pendingGroups || !pendingDevices) return;
-    const group = pendingGroups.find(g => g.friendly_name === LIGHT_GROUP);
-    if (!group) return;
+    allDevices = pendingDevices;
 
-    const ieeeSet = new Set(group.members.map(m => m.ieee_address));
-    groupMembers = pendingDevices
-      .filter(d => ieeeSet.has(d.ieee_address))
-      .map(d => {
-        // Extract color capabilities from device definition
-        const supports = { color: false, color_temp: false, color_temp_min: 150, color_temp_max: 500 };
-        const exposes = d.definition?.exposes || [];
-        for (const expose of exposes) {
-          const features = expose.features || [];
-          for (const f of features) {
-            if (f.name === 'color_xy' || f.name === 'color_hs') supports.color = true;
-            if (f.name === 'color_temp') {
-              supports.color_temp = true;
-              if (f.value_min !== undefined) supports.color_temp_min = f.value_min;
-              if (f.value_max !== undefined) supports.color_temp_max = f.value_max;
-            }
-          }
+    // Collect all grouped IEEE addresses
+    const allGroupedIeee = new Set();
+
+    for (const groupName of LIGHT_GROUPS) {
+      const group = pendingGroups.find(g => g.friendly_name === groupName);
+      if (!group) {
+        // Group doesn't exist in Zigbee2MQTT yet — skip gracefully
+        groupMembers[groupName] = [];
+        continue;
+      }
+
+      const ieeeSet = new Set(group.members.map(m => m.ieee_address));
+      groupMembers[groupName] = pendingDevices
+        .filter(d => ieeeSet.has(d.ieee_address))
+        .map(d => {
+          allGroupedIeee.add(d.ieee_address);
+          return { ieee: d.ieee_address, friendly_name: d.friendly_name, supports: extractSupports(d) };
+        });
+
+      console.log(`Light group "${groupName}" members:`, groupMembers[groupName].map(m => m.friendly_name));
+    }
+
+    // Subscribe to individual device topics for all groups (skip already-subscribed)
+    for (const groupName of LIGHT_GROUPS) {
+      for (const member of groupMembers[groupName]) {
+        const topic = `zigbee2mqtt/${member.friendly_name}`;
+        if (!subscribedTopics.has(topic)) {
+          mqttClient.subscribe(topic, { qos: 0 });
+          subscribedTopics.add(topic);
         }
-        return { ieee: d.ieee_address, friendly_name: d.friendly_name, supports };
-      });
+      }
+    }
 
-    console.log('Light group members:', groupMembers.map(m => m.friendly_name));
-
-    // Subscribe to individual device topics (skip already-subscribed)
-    for (const member of groupMembers) {
-      const topic = `zigbee2mqtt/${member.friendly_name}`;
+    // Subscribe to ungrouped light devices
+    for (const d of pendingDevices) {
+      if (allGroupedIeee.has(d.ieee_address)) continue;
+      if (!isLightDevice(d)) continue;
+      const topic = `zigbee2mqtt/${d.friendly_name}`;
       if (!subscribedTopics.has(topic)) {
         mqttClient.subscribe(topic, { qos: 0 });
         subscribedTopics.add(topic);
@@ -804,26 +851,26 @@ function startLightsMonitor() {
     } else if (topic === 'zigbee2mqtt/bridge/devices') {
       pendingDevices = data;
       resolveMembers();
-    } else if (topic === `zigbee2mqtt/${LIGHT_GROUP}`) {
-      if (data.state !== undefined) lightsState.group.state = data.state;
-      if (data.brightness !== undefined) lightsState.group.brightness = data.brightness;
-      // Store color_temp from MQTT but NOT color (MQTT sends xy, not hex)
-      if (data.color_temp !== undefined) lightsState.group.color_temp = data.color_temp;
     } else {
-      // Individual device state
-      const deviceName = topic.replace('zigbee2mqtt/', '');
-      if (groupMembers.some(m => m.friendly_name === deviceName)) {
-        if (!lightsState.devices[deviceName]) {
-          lightsState.devices[deviceName] = { state: 'OFF', brightness: 0 };
+      // Check if this is a group topic
+      const topicName = topic.replace('zigbee2mqtt/', '');
+      const matchedGroup = LIGHT_GROUPS.find(g => g === topicName);
+
+      if (matchedGroup) {
+        if (data.state !== undefined) lightsState[matchedGroup].state = data.state;
+        if (data.brightness !== undefined) lightsState[matchedGroup].brightness = data.brightness;
+        if (data.color_temp !== undefined) lightsState[matchedGroup].color_temp = data.color_temp;
+      } else {
+        // Individual device state (grouped or ungrouped)
+        if (!deviceState[topicName]) {
+          deviceState[topicName] = { state: 'OFF', brightness: 0 };
         }
         if (data.state !== undefined) {
-          lightsState.devices[deviceName].state = data.state;
-          // Auto-cancel timer when device turns OFF (manual toggle, group off, or timer's own echo)
-          if (data.state === 'OFF') clearDeviceTimer(deviceName);
+          deviceState[topicName].state = data.state;
+          if (data.state === 'OFF') clearDeviceTimer(topicName);
         }
-        if (data.brightness !== undefined) lightsState.devices[deviceName].brightness = data.brightness;
-        // Store color_temp from MQTT but NOT color (MQTT sends xy, not hex)
-        if (data.color_temp !== undefined) lightsState.devices[deviceName].color_temp = data.color_temp;
+        if (data.brightness !== undefined) deviceState[topicName].brightness = data.brightness;
+        if (data.color_temp !== undefined) deviceState[topicName].color_temp = data.color_temp;
       }
     }
   });
@@ -878,57 +925,97 @@ function ensureMqttConnected(timeoutMs = 5000) {
   });
 }
 
-// GET /lights — current state of group + individual lights
+// GET /lights — current state of all groups + ungrouped lights
 app.get('/lights', async (req, res) => {
   touchLights();
   try { await ensureMqttConnected(2000); } catch {}
-  // Aggregate capabilities across all group members
-  const capabilities = { color: false, color_temp: false, color_temp_min: 150, color_temp_max: 500 };
-  for (const m of groupMembers) {
-    if (m.supports.color) capabilities.color = true;
-    if (m.supports.color_temp) {
-      capabilities.color_temp = true;
-      capabilities.color_temp_min = Math.min(capabilities.color_temp_min, m.supports.color_temp_min);
-      capabilities.color_temp_max = Math.max(capabilities.color_temp_max, m.supports.color_temp_max);
+
+  // Collect all grouped IEEE addresses
+  const allGroupedIeee = new Set();
+  for (const g of LIGHT_GROUPS) {
+    for (const m of groupMembers[g]) allGroupedIeee.add(m.ieee);
+  }
+
+  // Build groups array — skip empty groups (not yet in Zigbee2MQTT)
+  const groups = [];
+  for (const groupName of LIGHT_GROUPS) {
+    const members = groupMembers[groupName];
+    if (!members || members.length === 0) continue;
+
+    const capabilities = { color: false, color_temp: false, color_temp_min: 150, color_temp_max: 500 };
+    for (const m of members) {
+      if (m.supports.color) capabilities.color = true;
+      if (m.supports.color_temp) {
+        capabilities.color_temp = true;
+        capabilities.color_temp_min = Math.min(capabilities.color_temp_min, m.supports.color_temp_min);
+        capabilities.color_temp_max = Math.max(capabilities.color_temp_max, m.supports.color_temp_max);
+      }
     }
+    if (!capabilities.color_temp) {
+      capabilities.color_temp_min = 150;
+      capabilities.color_temp_max = 500;
+    }
+
+    const devices = members.map(m => ({
+      id: m.friendly_name,
+      name: m.friendly_name,
+      state: deviceState[m.friendly_name]?.state || 'OFF',
+      brightness: deviceState[m.friendly_name]?.brightness || 0,
+      color_hex: deviceState[m.friendly_name]?.color_hex || null,
+      color_temp: deviceState[m.friendly_name]?.color_temp || null,
+      supports: m.supports,
+      timer: deviceTimers.has(m.friendly_name) ? { endsAt: deviceTimers.get(m.friendly_name).endsAt } : null,
+    }));
+
+    groups.push({
+      name: groupName,
+      capabilities,
+      state: lightsState[groupName]?.state || 'OFF',
+      brightness: lightsState[groupName]?.brightness || 0,
+      color_hex: lightsState[groupName]?.color_hex || null,
+      color_temp: lightsState[groupName]?.color_temp || null,
+      devices,
+    });
   }
-  // Reset to defaults if no color_temp devices found
-  if (!capabilities.color_temp) {
-    capabilities.color_temp_min = 150;
-    capabilities.color_temp_max = 500;
+
+  // Ungrouped light devices
+  const ungrouped = [];
+  for (const d of allDevices) {
+    if (allGroupedIeee.has(d.ieee_address)) continue;
+    if (!isLightDevice(d)) continue;
+    const name = d.friendly_name;
+    ungrouped.push({
+      id: name,
+      name,
+      state: deviceState[name]?.state || 'OFF',
+      brightness: deviceState[name]?.brightness || 0,
+      color_hex: deviceState[name]?.color_hex || null,
+      color_temp: deviceState[name]?.color_temp || null,
+      supports: extractSupports(d),
+      timer: deviceTimers.has(name) ? { endsAt: deviceTimers.get(name).endsAt } : null,
+    });
   }
-  const devices = groupMembers.map(m => ({
-    id: m.friendly_name,
-    name: m.friendly_name,
-    state: lightsState.devices[m.friendly_name]?.state || 'OFF',
-    brightness: lightsState.devices[m.friendly_name]?.brightness || 0,
-    color_hex: lightsState.devices[m.friendly_name]?.color_hex || null,
-    color_temp: lightsState.devices[m.friendly_name]?.color_temp || null,
-    supports: m.supports,
-    timer: deviceTimers.has(m.friendly_name) ? { endsAt: deviceTimers.get(m.friendly_name).endsAt } : null,
-  }));
+
   res.json({
     connected: mqttClient?.connected || false,
-    capabilities,
-    group: {
-      name: LIGHT_GROUP,
-      state: lightsState.group.state,
-      brightness: lightsState.group.brightness,
-      color_hex: lightsState.group.color_hex || null,
-      color_temp: lightsState.group.color_temp || null,
-    },
-    devices,
+    groups,
+    ungrouped,
   });
 });
 
-// POST /lights/group/set — control group { state?, brightness?, color?, color_temp? }
-app.post('/lights/group/set', async (req, res) => {
+// POST /lights/group/:groupName/set — control group { state?, brightness?, color?, color_temp? }
+app.post('/lights/group/:groupName/set', async (req, res) => {
   touchLights();
+  const groupName = req.params.groupName;
+  if (!LIGHT_GROUPS.includes(groupName)) {
+    return res.status(400).json({ error: 'Unknown group' });
+  }
   try {
     await ensureMqttConnected();
   } catch {
     return res.status(503).json({ error: 'MQTT not connected' });
   }
+  const members = groupMembers[groupName] || [];
   const payload = {};
   if (req.body.state !== undefined) payload.state = req.body.state;
   if (req.body.brightness !== undefined) payload.brightness = req.body.brightness;
@@ -943,28 +1030,28 @@ app.post('/lights/group/set', async (req, res) => {
   // Track color_hex on set so we can serve it back (MQTT only echoes xy)
   if (req.body.color?.hex) {
     const hex = req.body.color.hex;
-    lightsState.group.color_hex = hex;
-    for (const member of groupMembers) {
-      if (!lightsState.devices[member.friendly_name]) lightsState.devices[member.friendly_name] = { state: 'OFF', brightness: 0 };
-      lightsState.devices[member.friendly_name].color_hex = hex;
+    lightsState[groupName].color_hex = hex;
+    for (const member of members) {
+      if (!deviceState[member.friendly_name]) deviceState[member.friendly_name] = { state: 'OFF', brightness: 0 };
+      deviceState[member.friendly_name].color_hex = hex;
     }
   }
   if (req.body.color_temp !== undefined) {
-    lightsState.group.color_hex = null;
-    for (const member of groupMembers) {
-      if (lightsState.devices[member.friendly_name]) lightsState.devices[member.friendly_name].color_hex = null;
+    lightsState[groupName].color_hex = null;
+    for (const member of members) {
+      if (deviceState[member.friendly_name]) deviceState[member.friendly_name].color_hex = null;
     }
   }
 
   if (brightnessOnly) {
-    for (const member of groupMembers) {
+    for (const member of members) {
       const name = member.friendly_name;
-      if (lightsState.devices[name]?.state === 'ON') {
+      if (deviceState[name]?.state === 'ON') {
         mqttClient.publish(`zigbee2mqtt/${name}/set`, JSON.stringify({ brightness: payload.brightness }));
       }
     }
   } else {
-    mqttClient.publish(`zigbee2mqtt/${LIGHT_GROUP}/set`, JSON.stringify(payload));
+    mqttClient.publish(`zigbee2mqtt/${groupName}/set`, JSON.stringify(payload));
   }
   res.json({ status: 'ok', payload });
 });
@@ -978,7 +1065,15 @@ app.post('/lights/:id/set', async (req, res) => {
     return res.status(503).json({ error: 'MQTT not connected' });
   }
   const id = req.params.id;
-  if (!groupMembers.some(m => m.friendly_name === id)) {
+  // Validate against all known devices (all groups + ungrouped)
+  const allKnown = new Set();
+  for (const g of LIGHT_GROUPS) {
+    for (const m of groupMembers[g]) allKnown.add(m.friendly_name);
+  }
+  for (const d of allDevices) {
+    if (isLightDevice(d)) allKnown.add(d.friendly_name);
+  }
+  if (!allKnown.has(id)) {
     return res.status(400).json({ error: 'Unknown light' });
   }
   const payload = {};
@@ -988,9 +1083,9 @@ app.post('/lights/:id/set', async (req, res) => {
   if (req.body.color_temp !== undefined) payload.color_temp = req.body.color_temp;
 
   // Track color_hex on set so we can serve it back (MQTT only echoes xy)
-  if (!lightsState.devices[id]) lightsState.devices[id] = { state: 'OFF', brightness: 0 };
-  if (req.body.color?.hex) lightsState.devices[id].color_hex = req.body.color.hex;
-  if (req.body.color_temp !== undefined) lightsState.devices[id].color_hex = null;
+  if (!deviceState[id]) deviceState[id] = { state: 'OFF', brightness: 0 };
+  if (req.body.color?.hex) deviceState[id].color_hex = req.body.color.hex;
+  if (req.body.color_temp !== undefined) deviceState[id].color_hex = null;
 
   mqttClient.publish(`zigbee2mqtt/${id}/set`, JSON.stringify(payload));
   res.json({ status: 'ok', payload });
@@ -1005,7 +1100,14 @@ app.post('/lights/:id/timer', async (req, res) => {
     return res.status(503).json({ error: 'MQTT not connected' });
   }
   const id = req.params.id;
-  if (!groupMembers.some(m => m.friendly_name === id)) {
+  const allKnown = new Set();
+  for (const g of LIGHT_GROUPS) {
+    for (const m of groupMembers[g]) allKnown.add(m.friendly_name);
+  }
+  for (const d of allDevices) {
+    if (isLightDevice(d)) allKnown.add(d.friendly_name);
+  }
+  if (!allKnown.has(id)) {
     return res.status(400).json({ error: 'Unknown light' });
   }
   const duration = req.body.duration;
@@ -1331,11 +1433,15 @@ app.get('/spotify/now-playing', async (req, res) => {
     const data = await spotRes.json();
     if (!data?.item) return res.json(null);
     const t = data.item;
+    const fetchedAt = spotifyCache.get('/me/player/currently-playing')?.ts || Date.now();
     res.json({
       name: t.name,
       artist: t.artists?.map(a => a.name).join(', ') || '',
       albumArt: t.album?.images?.[0]?.url || '',
       isPlaying: data.is_playing,
+      progress_ms: data.progress_ms || 0,
+      duration_ms: t.duration_ms || 0,
+      timestamp: fetchedAt,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -1397,16 +1503,19 @@ function buildDigestHeader(method, uri, challenge) {
   return header;
 }
 
-async function onvifRequest(soapBody) {
+async function onvifRequest(soapBody, serviceUrl = ONVIF_PTZ_URL) {
   const envelope = `<?xml version="1.0" encoding="UTF-8"?>
 <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"
             xmlns:tptz="http://www.onvif.org/ver20/ptz/wsdl"
-            xmlns:tt="http://www.onvif.org/ver10/schema">
+            xmlns:tt="http://www.onvif.org/ver10/schema"
+            xmlns:tev="http://www.onvif.org/ver10/events/wsdl"
+            xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2"
+            xmlns:wsa="http://www.w3.org/2005/08/addressing">
   <s:Body>${soapBody}</s:Body>
 </s:Envelope>`;
 
-  const url = new URL(ONVIF_PTZ_URL);
-  const res1 = await fetch(ONVIF_PTZ_URL, {
+  const url = new URL(serviceUrl);
+  const res1 = await fetch(serviceUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/soap+xml; charset=utf-8' },
     body: envelope,
@@ -1420,7 +1529,7 @@ async function onvifRequest(soapBody) {
   const challenge = parseDigestChallenge(wwwAuth);
   const authHeader = buildDigestHeader('POST', url.pathname, challenge);
 
-  return fetch(ONVIF_PTZ_URL, {
+  return fetch(serviceUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/soap+xml; charset=utf-8',

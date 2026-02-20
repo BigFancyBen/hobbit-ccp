@@ -42,8 +42,9 @@ web/
 │   │   │   └── ExitButton.tsx   # Exit gaming button
 │   │   ├── ui/
 │   │   │   └── ConfirmDialog.tsx # Animated confirmation modal
-│   │   ├── LightControls.tsx    # Living room lights (uses LightGroupCard)
+│   │   ├── LightControls.tsx    # Living room lights (uses LightGroupCard + TimerModal)
 │   │   ├── LightGroupCard.tsx   # Reusable: toggle + dimmer slider + optional children
+│   │   ├── TimerModal.tsx       # Auto-off timer modal for switched outlets
 │   │   ├── SettingsModal.tsx    # Settings dialog (Stats + System tabs)
 │   │   ├── StatsTab.tsx         # System stats (CPU, GPU, RAM, disk, network)
 │   │   └── SystemTab.tsx        # Controllers + system reboot
@@ -311,6 +312,7 @@ The bridge service (`/api/control/`) provides these endpoints:
 | `/lights` | GET | Zigbee light group + individual states + capabilities |
 | `/lights/group/set` | POST | Set group state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
 | `/lights/:id/set` | POST | Set individual light state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
+| `/lights/:id/timer` | POST | Set/cancel auto-off timer `{ duration: <minutes> }` (0 = cancel) |
 | `/controllers` | GET | Xbox controller dongle + connected controllers |
 
 ### App List Caching
@@ -345,6 +347,8 @@ function Lights() {
     setGroupBrightness, // Set group brightness (0-100 percent)
     setGroupColor,      // Set group color `{ hex: string }`
     setGroupColorTemp,  // Set group color temp (mireds)
+    setTimer,           // Set auto-off timer (id, minutes) — turns ON + schedules OFF
+    cancelTimer,        // Cancel active timer (id)
   } = useLights();
 }
 ```
@@ -456,6 +460,7 @@ config.default  // Balanced (general use)
 
 - `ConfirmDialog` - Animated confirmation modal at `@/components/ui/ConfirmDialog`
 - `LightGroupCard` - Toggle + dimmer card for Zigbee light groups at `@/components/LightGroupCard`
+- `TimerModal` - Auto-off timer presets for switched outlets at `@/components/TimerModal`
 
 ### LightGroupCard
 

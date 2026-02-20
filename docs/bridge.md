@@ -221,6 +221,7 @@ Commands requiring root access need sudoers entries. Add to `roles/webserver/tas
 | `/lights` | GET | Zigbee light group + individual states |
 | `/lights/group/set` | POST | Set group state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
 | `/lights/:id/set` | POST | Set individual light state/brightness/color `{ state?, brightness?, color?, color_temp? }` |
+| `/lights/:id/timer` | POST | Set/cancel auto-off timer `{ duration: <minutes> }` (0 = cancel) |
 | `/controllers` | GET | Xbox controller dongle + connected controllers |
 
 ## MQTT Integration
@@ -234,6 +235,8 @@ The bridge connects to the local Mosquitto MQTT broker (`mqtt://127.0.0.1:1883`)
 **State caching**: Group and individual device states (on/off, brightness 0-254) are cached from MQTT messages and returned via `GET /lights`.
 
 **Control flow**: `POST /lights/group/set` and `POST /lights/:id/set` publish JSON payloads to the appropriate `zigbee2mqtt/<target>/set` topics. Individual light IDs are validated against discovered group members.
+
+**Auto-off timers**: `POST /lights/:id/timer` accepts `{ duration: <minutes> }`. When `duration > 0`, the device is turned ON and a `setTimeout` is set to publish `{ state: 'OFF' }` after the duration. Timer state is tracked in a `deviceTimers` Map (keyed by friendly_name, storing `{ timeoutId, endsAt }`). `GET /lights` includes `timer: { endsAt }` on each device so the frontend can show a live countdown. Timers auto-cancel when MQTT reports the device turned OFF (manual toggle, group toggle, or the timer's own OFF echo). Timers survive page navigation since they live bridge-side, but not bridge restarts.
 
 ## Security
 

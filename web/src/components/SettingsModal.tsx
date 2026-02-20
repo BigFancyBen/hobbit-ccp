@@ -11,17 +11,24 @@ import { CameraTab } from './CameraTab';
 interface SettingsModalProps {
   onReboot: () => void;
   loading: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  defaultTab?: TabKey;
 }
 
 const TABS = ['system', 'stats', 'camera'] as const;
-type TabKey = (typeof TABS)[number];
+export type TabKey = (typeof TABS)[number];
 
-export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
-  const [tab, setTab] = useState<TabKey>('system');
-  const [isOpen, setIsOpen] = useState(false);
+export function SettingsModal({ onReboot, loading, open, onOpenChange, defaultTab }: SettingsModalProps) {
+  const [tab, setTab] = useState<TabKey>(defaultTab || 'system');
   const prevTabIndexRef = useRef(0);
 
-  const handleClose = () => setIsOpen(false);
+  // When defaultTab changes externally (e.g. deep link), switch to it
+  useEffect(() => {
+    if (defaultTab) setTab(defaultTab);
+  }, [defaultTab]);
+
+  const handleClose = () => onOpenChange(false);
 
   // Calculate animation direction based on tab change
   const currentIndex = TABS.indexOf(tab);
@@ -41,21 +48,21 @@ export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
 
   // Lock body scroll when modal is open
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       lockScroll();
       return () => unlockScroll();
     }
-  }, [isOpen]);
+  }, [open]);
 
   // Modal transition - scales from top-right corner
-  const modalTransition = useTransition(isOpen, {
+  const modalTransition = useTransition(open, {
     from: { opacity: 0, scale: 0.3 },
     enter: { opacity: 1, scale: 1 },
     leave: { opacity: 0, scale: 0.3 },
     config: { tension: 320, friction: 22 },
   });
 
-  const backdropTransition = useTransition(isOpen, {
+  const backdropTransition = useTransition(open, {
     from: { opacity: 0 },
     enter: { opacity: 1 },
     leave: { opacity: 0 },
@@ -154,7 +161,7 @@ export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
         variant="ghost"
         size="icon"
         className="h-10 w-10 touch-manipulation"
-        onClick={() => setIsOpen(true)}
+        onClick={() => onOpenChange(true)}
       >
         <GearIcon />
       </Button>

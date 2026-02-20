@@ -7,7 +7,7 @@ import { TimerModal } from '@/components/TimerModal';
 import { useLights } from '@/hooks/useLights';
 
 type ColorTarget =
-  | { type: 'group'; supports: { color: boolean; color_temp: boolean } }
+  | { type: 'group'; groupName: string; supports: { color: boolean; color_temp: boolean } }
   | { type: 'device'; id: string; name: string; supports: { color: boolean; color_temp: boolean } };
 
 function TimerCountdown({ endsAt }: { endsAt: number }) {
@@ -37,12 +37,22 @@ function TimerCountdown({ endsAt }: { endsAt: number }) {
   return <span className="text-[9px] text-muted-foreground tabular-nums retro">{display}</span>;
 }
 
+// Capitalize group names for display (e.g. "livingroom" → "Living Room")
+const GROUP_LABELS: Record<string, string> = {
+  livingroom: 'Living Room',
+  kitchen: 'Kitchen',
+  office: 'Office',
+};
+
+function groupLabel(name: string) {
+  return GROUP_LABELS[name] || name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 export function LightControls() {
   const {
     reconnecting,
-    capabilities,
-    group,
-    devices,
+    groups,
+    ungrouped,
     loading,
     acting,
     toggleGroup,
@@ -58,7 +68,6 @@ export function LightControls() {
 
   const [colorTarget, setColorTarget] = useState<ColorTarget | null>(null);
   const [timerTarget, setTimerTarget] = useState<{ id: string; name: string } | null>(null);
-  const hasColorControls = capabilities.color || capabilities.color_temp;
 
   if (loading) {
     return (
@@ -71,71 +80,120 @@ export function LightControls() {
     );
   }
 
-  const groupOn = group?.state === 'ON';
+  // Find device for color picker modal across all groups + ungrouped
+  const allDevices = [...groups.flatMap(g => g.devices), ...ungrouped];
 
-  const modalTitle = colorTarget?.type === 'group' ? 'Living Room' : colorTarget?.type === 'device' ? colorTarget.name : '';
+  const modalTitle = colorTarget?.type === 'group'
+    ? groupLabel(colorTarget.groupName)
+    : colorTarget?.type === 'device' ? colorTarget.name : '';
   const modalColorHex = colorTarget?.type === 'group'
-    ? (group?.color_hex ?? null)
+    ? (groups.find(g => g.name === colorTarget.groupName)?.color_hex ?? null)
     : colorTarget?.type === 'device'
-      ? (devices.find(d => d.id === colorTarget.id)?.color_hex ?? null)
+      ? (allDevices.find(d => d.id === colorTarget.id)?.color_hex ?? null)
       : null;
   const modalColorTemp = colorTarget?.type === 'group'
-    ? (group?.color_temp ?? null)
+    ? (groups.find(g => g.name === colorTarget.groupName)?.color_temp ?? null)
     : colorTarget?.type === 'device'
-      ? (devices.find(d => d.id === colorTarget.id)?.color_temp ?? null)
+      ? (allDevices.find(d => d.id === colorTarget.id)?.color_temp ?? null)
       : null;
 
+  // Find timer target device
+  const timerDevice = timerTarget ? allDevices.find(d => d.id === timerTarget.id) : null;
+
   return (
-    <div className="overflow-y-auto">
-      <LightGroupCard
-        name="Living Room"
-        on={groupOn}
-        brightnessPercent={group?.brightnessPercent ?? 0}
-        reconnecting={reconnecting}
-        acting={acting}
-        onToggle={toggleGroup}
-        onBrightness={setGroupBrightness}
-        onColorClick={hasColorControls ? () => setColorTarget({ type: 'group', supports: capabilities }) : undefined}
-      >
-        {devices.length > 0 && (
-          <div>
-            {devices.map(device => {
-              const hasDeviceColor = device.supports.color || device.supports.color_temp;
-              return (
-                <div key={device.id} className="flex items-center gap-2 py-2 border-b border-dashed border-muted-foreground/20 last:border-b-0">
-                  <span
-                    className={`inline-block size-2 shrink-0 ${device.state !== 'ON' ? 'bg-muted-foreground/40' : ''}`}
-                    style={device.state === 'ON' ? {
-                      backgroundColor: device.color_hex ?? (device.color_temp ? miredsToApproxColor(device.color_temp) : '#FFC58F'),
-                    } : undefined}
-                  />
-                  {hasDeviceColor ? (
-                    <button
-                      onClick={() => setColorTarget({ type: 'device', id: device.id, name: device.name, supports: device.supports })}
-                      className="text-xs retro touch-manipulation active:scale-95 transition-transform text-left"
-                    >
-                      {device.name}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setTimerTarget({ id: device.id, name: device.name })}
-                      className="text-xs retro touch-manipulation active:scale-95 transition-transform text-left"
-                    >
-                      {device.name}
-                    </button>
-                  )}
-                  {device.timer && <TimerCountdown endsAt={device.timer.endsAt} />}
-                  <Switch
-                    className="ml-auto"
-                    checked={device.state === 'ON'}
-                    onCheckedChange={() => toggleLight(device.id)}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </LightGroupCard>
+    <div className="overflow-y-auto space-y-3">
+      {groups.map(group => {
+        const hasColorControls = group.capabilities.color || group.capabilities.color_temp;
+        const groupOn = group.state === 'ON';
+
+        return (
+          <LightGroupCard
+            key={group.name}
+            name={groupLabel(group.name)}
+            on={groupOn}
+            brightnessPercent={group.brightnessPercent}
+            reconnecting={reconnecting}
+            acting={acting}
+            onToggle={() => toggleGroup(group.name)}
+            onBrightness={(pct) => setGroupBrightness(group.name, pct)}
+            onColorClick={hasColorControls ? () => setColorTarget({ type: 'group', groupName: group.name, supports: group.capabilities }) : undefined}
+          >
+            {group.devices.length > 0 && (
+              <div>
+                {group.devices.map(device => {
+                  const hasDeviceColor = device.supports.color || device.supports.color_temp;
+                  return (
+                    <div key={device.id} className="flex items-center gap-2 py-2 border-b border-dashed border-muted-foreground/20 last:border-b-0">
+                      <span
+                        className={`inline-block size-2 shrink-0 ${device.state !== 'ON' ? 'bg-muted-foreground/40' : ''}`}
+                        style={device.state === 'ON' ? {
+                          backgroundColor: device.color_hex ?? (device.color_temp ? miredsToApproxColor(device.color_temp) : '#FFC58F'),
+                        } : undefined}
+                      />
+                      {hasDeviceColor ? (
+                        <button
+                          onClick={() => setColorTarget({ type: 'device', id: device.id, name: device.name, supports: device.supports })}
+                          className="text-xs retro touch-manipulation active:scale-95 transition-transform text-left"
+                        >
+                          {device.name}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setTimerTarget({ id: device.id, name: device.name })}
+                          className="text-xs retro touch-manipulation active:scale-95 transition-transform text-left"
+                        >
+                          {device.name}
+                        </button>
+                      )}
+                      {device.timer && <TimerCountdown endsAt={device.timer.endsAt} />}
+                      <Switch
+                        className="ml-auto"
+                        checked={device.state === 'ON'}
+                        onCheckedChange={() => toggleLight(device.id)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </LightGroupCard>
+        );
+      })}
+
+      {/* Ungrouped lights */}
+      {ungrouped.length > 0 && (
+        <div className="mx-2">
+          {ungrouped.map(device => (
+            <div key={device.id} className="flex items-center gap-2 py-2 border-b border-dashed border-muted-foreground/20 last:border-b-0">
+              <span
+                className={`inline-block size-2 shrink-0 ${device.state !== 'ON' ? 'bg-muted-foreground/40' : ''}`}
+                style={device.state === 'ON' ? {
+                  backgroundColor: device.color_hex ?? (device.color_temp ? miredsToApproxColor(device.color_temp) : '#FFC58F'),
+                } : undefined}
+              />
+              <button
+                onClick={() => {
+                  const hasColor = device.supports.color || device.supports.color_temp;
+                  if (hasColor) {
+                    setColorTarget({ type: 'device', id: device.id, name: device.name, supports: device.supports });
+                  } else {
+                    setTimerTarget({ id: device.id, name: device.name });
+                  }
+                }}
+                className="text-xs retro touch-manipulation active:scale-95 transition-transform text-left"
+              >
+                {device.name}
+              </button>
+              {device.timer && <TimerCountdown endsAt={device.timer.endsAt} />}
+              <Switch
+                className="ml-auto"
+                checked={device.state === 'ON'}
+                onCheckedChange={() => toggleLight(device.id)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
 
       <ColorPaletteModal
         open={colorTarget !== null}
@@ -146,12 +204,12 @@ export function LightControls() {
         currentColorTemp={modalColorTemp}
         onColorChange={(hex) => {
           if (!colorTarget) return;
-          if (colorTarget.type === 'group') setGroupColor(hex);
+          if (colorTarget.type === 'group') setGroupColor(colorTarget.groupName, hex);
           else setLightColor(colorTarget.id, hex);
         }}
         onColorTempChange={(mireds) => {
           if (!colorTarget) return;
-          if (colorTarget.type === 'group') setGroupColorTemp(mireds);
+          if (colorTarget.type === 'group') setGroupColorTemp(colorTarget.groupName, mireds);
           else setLightColorTemp(colorTarget.id, mireds);
         }}
       />
@@ -160,7 +218,7 @@ export function LightControls() {
         open={timerTarget !== null}
         onClose={() => setTimerTarget(null)}
         deviceName={timerTarget?.name ?? ''}
-        activeTimer={timerTarget ? (devices.find(d => d.id === timerTarget.id)?.timer ?? null) : null}
+        activeTimer={timerDevice?.timer ?? null}
         onSetTimer={(minutes) => { if (timerTarget) setTimer(timerTarget.id, minutes); }}
         onCancelTimer={() => { if (timerTarget) cancelTimer(timerTarget.id); }}
       />

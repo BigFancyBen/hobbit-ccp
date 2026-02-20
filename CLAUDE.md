@@ -54,7 +54,7 @@ There are no tests or linting configured.
   - `src/lib/utils.ts` — `cn()` utility (clsx + tailwind-merge)
   - `src/styles/` — `theme.css` (oklch Atari color vars), `retro.css` (Press Start 2P font)
 - `web/src/` — React 18 + TypeScript + Vite + Tailwind v4 frontend
-- `files/bridge.js` — Express backend (single file, ~850 lines), deployed to mini PC
+- `files/bridge.js` — Express backend (single file, ~1560 lines), deployed to mini PC
 - `files/silverbullet/` — SilverBullet theme (STYLES.md deployed to space/)
 - `files/` — All config files deployed by Ansible (docker-compose, nginx, systemd, etc.)
 - `roles/` — Ansible roles (base, security, tailscale, dns, moonlight, zigbee, webserver)
@@ -79,11 +79,13 @@ There are no tests or linting configured.
 
 **Color picker**: `ColorPickerModal` (`web/src/components/ColorPickerModal.tsx`) — portal modal with curated color swatches and warmth presets. The bridge stores `color_hex` (the hex we *sent*) on each device so the modal can highlight the active swatch on reopen — MQTT only echoes CIE xy which can't round-trip to hex. Setting `color_temp` clears `color_hex` and vice versa, both server-side and via optimistic updates. Selected swatches get a yellow outline (`border-yellow-400 ring-2`). Uses `useTransition` + backdrop + pixel border pattern.
 
+**Auto-off timer**: `TimerModal` (`web/src/components/TimerModal.tsx`) — portal modal for switched outlets (non-color devices like smart plugs). Tap the device name to open; 6 duration presets (15m–8hr) in a 2-column grid. Selecting a preset turns the device ON and sets a bridge-side `setTimeout` that publishes `{ state: 'OFF' }` via MQTT when it expires. The bridge tracks timers in a `deviceTimers` Map and exposes `timer: { endsAt }` in `GET /lights`. The frontend shows a live countdown (`TimerCountdown` component in `LightControls.tsx`) using a client-side `setInterval(1000)` — no extra polling. Timers auto-cancel when the device turns OFF (manual toggle, group toggle, or timer expiry echo).
+
 ## Bridge API
 
 All endpoints are under `/api/control/` in production (Nginx proxy strips the prefix). In the bridge code, routes are registered at root (`/health`, `/status`, `/cpu-stats`, etc.).
 
-Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached game list), `/apps/refresh`, `/launch-moonlight?app=X`, `/exit-gaming`, `/cpu-stats`, `/gpu-stats`, `/ram-stats`, `/disk-stats`, `/net-stats`, `/monitor-on`, `/monitor-off`, `/reboot`, `/shutdown`, `/lights` (Zigbee group state + capabilities + per-device `color_hex`/`color_temp`), `/lights/group/set` (accepts `state`, `brightness`, `color`, `color_temp`), `/lights/:id/set`, `/controllers` (Xbox controller dongle + connected controllers).
+Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached game list), `/apps/refresh`, `/launch-moonlight?app=X`, `/exit-gaming`, `/cpu-stats`, `/gpu-stats`, `/ram-stats`, `/disk-stats`, `/net-stats`, `/monitor-on`, `/monitor-off`, `/reboot`, `/shutdown`, `/lights` (Zigbee group state + capabilities + per-device `color_hex`/`color_temp` + `timer`), `/lights/group/set` (accepts `state`, `brightness`, `color`, `color_temp`), `/lights/:id/set`, `/lights/:id/timer` (set/cancel auto-off timer `{ duration: <minutes> }`), `/controllers` (Xbox controller dongle + connected controllers).
 
 ## Deployment Flow
 

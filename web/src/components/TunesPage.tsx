@@ -222,28 +222,61 @@ function HistoryModal({ open, onClose }: { open: boolean; onClose: () => void })
 
 function NowPlaying() {
   const { track } = useNowPlaying();
+  const [progress, setProgress] = useState(0);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!track || !track.duration_ms) {
+      setProgress(0);
+      return;
+    }
+
+    if (!track.isPlaying) {
+      setProgress(track.duration_ms > 0 ? track.progress_ms / track.duration_ms : 0);
+      return;
+    }
+
+    function tick() {
+      const elapsed = track!.progress_ms + (Date.now() - track!.timestamp);
+      setProgress(Math.min(elapsed / track!.duration_ms, 1));
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [track]);
+
   if (!track) return null;
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded bg-accent/20 shrink-0">
-      {track.albumArt && (
-        <div className="relative flex-shrink-0 w-14 h-14">
-          <img
-            src={track.albumArt}
-            alt=""
-            className="w-full h-full border-y-4 border-foreground dark:border-ring"
-            style={{ imageRendering: 'auto' }}
-          />
+    <div className="rounded bg-accent/20 shrink-0 overflow-hidden">
+      <div className="flex items-center gap-3 p-3">
+        {track.albumArt && (
+          <div className="relative flex-shrink-0 w-14 h-14">
+            <img
+              src={track.albumArt}
+              alt=""
+              className="w-full h-full border-y-4 border-foreground dark:border-ring"
+              style={{ imageRendering: 'auto' }}
+            />
+            <div
+              className="absolute inset-0 border-x-4 -mx-1 border-foreground dark:border-ring pointer-events-none"
+              aria-hidden="true"
+            />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm truncate retro">{track.name}</p>
+          <p className="text-xs text-muted-foreground truncate retro">{track.artist}</p>
+        </div>
+      </div>
+      {track.duration_ms > 0 && (
+        <div className="h-1 bg-muted">
           <div
-            className="absolute inset-0 border-x-4 -mx-1 border-foreground dark:border-ring pointer-events-none"
-            aria-hidden="true"
+            className="h-full bg-amber-500"
+            style={{ width: `${progress * 100}%` }}
           />
         </div>
       )}
-      <div className="min-w-0 flex-1">
-        <p className="text-sm truncate retro">{track.name}</p>
-        <p className="text-xs text-muted-foreground truncate retro">{track.artist}</p>
-      </div>
     </div>
   );
 }

@@ -18,7 +18,7 @@ export interface GroupCapabilities {
   color_temp_max: number;
 }
 
-interface LightDevice {
+export interface LightDevice {
   id: string;
   name: string;
   state: string;
@@ -29,11 +29,20 @@ interface LightDevice {
   timer: { endsAt: number } | null;
 }
 
+export interface LightGroup {
+  name: string;
+  capabilities: GroupCapabilities;
+  state: string;
+  brightness: number;
+  color_hex: string | null;
+  color_temp: number | null;
+  devices: LightDevice[];
+}
+
 interface LightsData {
   connected: boolean;
-  capabilities: GroupCapabilities;
-  group: { name: string; state: string; brightness: number; color_hex: string | null; color_temp: number | null };
-  devices: LightDevice[];
+  groups: LightGroup[];
+  ungrouped: LightDevice[];
 }
 
 // Quadratic curve so the slider spends more range on dim values
@@ -46,6 +55,26 @@ function toZigbee(percent: number) {
   return Math.round((percent / 100) ** 2 * 254);
 }
 
+// Helper to update a specific group within data
+function updateGroup(prev: LightsData, groupName: string, fn: (g: LightGroup) => LightGroup): LightsData {
+  return {
+    ...prev,
+    groups: prev.groups.map(g => g.name === groupName ? fn(g) : g),
+  };
+}
+
+// Helper to update a device across all groups and ungrouped
+function updateDevice(prev: LightsData, id: string, fn: (d: LightDevice) => LightDevice): LightsData {
+  return {
+    ...prev,
+    groups: prev.groups.map(g => ({
+      ...g,
+      devices: g.devices.map(d => d.id === id ? fn(d) : d),
+    })),
+    ungrouped: prev.ungrouped.map(d => d.id === id ? fn(d) : d),
+  };
+}
+
 export function useLights(refreshInterval = 5000) {
   const cached = getCache<LightsData>(CACHE_KEY);
   const [data, setData] = useState<LightsData | null>(
@@ -53,7 +82,6 @@ export function useLights(refreshInterval = 5000) {
   );
   const [loading, setLoading] = useState(!cached);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // After a user action, ignore poll results briefly so optimistic state isn't overwritten
   const ignoreUntil = useRef(0);
   const [acting, setActing] = useState(false);
   const inflight = useRef(0);
@@ -98,24 +126,25 @@ export function useLights(refreshInterval = 5000) {
     };
   }, [fetchLights, refreshInterval]);
 
-  const toggleGroup = useCallback(async () => {
+  const toggleGroup = useCallback(async (groupName: string) => {
     if (!data) return;
     const prevData = data;
-    const newState = data.group.state === 'ON' ? 'OFF' : 'ON';
+    const group = data.groups.find(g => g.name === groupName);
+    if (!group) return;
+    const newState = group.state === 'ON' ? 'OFF' : 'ON';
     ignoreUntil.current = Date.now() + 3000;
-    // Optimistic update — also flip every individual device
-    setData(prev => prev ? {
-      ...prev,
-      group: { ...prev.group, state: newState },
-      devices: prev.devices.map(d => ({
+    setData(prev => prev ? updateGroup(prev, groupName, g => ({
+      ...g,
+      state: newState,
+      devices: g.devices.map(d => ({
         ...d,
         state: newState,
         ...(newState === 'OFF' ? { timer: null } : {}),
       })),
-    } : prev);
+    })) : prev);
     inflight.current++; setActing(true);
     try {
-      const res = await fetch(`${API}/lights/group/set`, {
+      const res = await fetch(`${API}/lights/group/${encodeURIComponent(groupName)}/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: newState }),
@@ -131,19 +160,19 @@ export function useLights(refreshInterval = 5000) {
   const toggleLight = useCallback(async (id: string) => {
     if (!data) return;
     const prevData = data;
-    const device = data.devices.find(d => d.id === id);
+    // Search across all groups and ungrouped
+    const allDevices = [...data.groups.flatMap(g => g.devices), ...data.ungrouped];
+    const device = allDevices.find(d => d.id === id);
     if (!device) return;
     const newState = device.state === 'ON' ? 'OFF' : 'ON';
     ignoreUntil.current = Date.now() + 3000;
-    // Optimistic update
     setData(prev => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        devices: prev.devices.map(d =>
-          d.id === id ? { ...d, state: newState, ...(newState === 'OFF' ? { timer: null } : {}) } : d
-        ),
-      };
+      return updateDevice(prev, id, d => ({
+        ...d,
+        state: newState,
+        ...(newState === 'OFF' ? { timer: null } : {}),
+      }));
     });
     inflight.current++; setActing(true);
     try {
@@ -160,21 +189,20 @@ export function useLights(refreshInterval = 5000) {
     }
   }, [data]);
 
-  const setGroupBrightness = useCallback(async (percent: number) => {
+  const setGroupBrightness = useCallback(async (groupName: string, percent: number) => {
     const prevData = data;
     const zigbee = toZigbee(percent);
     ignoreUntil.current = Date.now() + 3000;
-    // Optimistic update — only update brightness for devices that are ON
-    setData(prev => prev ? {
-      ...prev,
-      group: { ...prev.group, brightness: zigbee },
-      devices: prev.devices.map(d =>
+    setData(prev => prev ? updateGroup(prev, groupName, g => ({
+      ...g,
+      brightness: zigbee,
+      devices: g.devices.map(d =>
         d.state === 'ON' ? { ...d, brightness: zigbee } : d
       ),
-    } : prev);
+    })) : prev);
     inflight.current++; setActing(true);
     try {
-      const res = await fetch(`${API}/lights/group/set`, {
+      const res = await fetch(`${API}/lights/group/${encodeURIComponent(groupName)}/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brightness: zigbee }),
@@ -187,17 +215,18 @@ export function useLights(refreshInterval = 5000) {
     }
   }, [data]);
 
-  const setGroupColor = useCallback(async (hex: string) => {
+  const setGroupColor = useCallback(async (groupName: string, hex: string) => {
     const prevData = data;
     ignoreUntil.current = Date.now() + 3000;
-    setData(prev => prev ? {
-      ...prev,
-      group: { ...prev.group, color_hex: hex, color_temp: null },
-      devices: prev.devices.map(d => ({ ...d, color_hex: hex, color_temp: null })),
-    } : prev);
+    setData(prev => prev ? updateGroup(prev, groupName, g => ({
+      ...g,
+      color_hex: hex,
+      color_temp: null,
+      devices: g.devices.map(d => ({ ...d, color_hex: hex, color_temp: null })),
+    })) : prev);
     inflight.current++; setActing(true);
     try {
-      const res = await fetch(`${API}/lights/group/set`, {
+      const res = await fetch(`${API}/lights/group/${encodeURIComponent(groupName)}/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ color: { hex } }),
@@ -210,17 +239,18 @@ export function useLights(refreshInterval = 5000) {
     }
   }, [data]);
 
-  const setGroupColorTemp = useCallback(async (mireds: number) => {
+  const setGroupColorTemp = useCallback(async (groupName: string, mireds: number) => {
     const prevData = data;
     ignoreUntil.current = Date.now() + 3000;
-    setData(prev => prev ? {
-      ...prev,
-      group: { ...prev.group, color_hex: null, color_temp: mireds },
-      devices: prev.devices.map(d => ({ ...d, color_hex: null, color_temp: mireds })),
-    } : prev);
+    setData(prev => prev ? updateGroup(prev, groupName, g => ({
+      ...g,
+      color_hex: null,
+      color_temp: mireds,
+      devices: g.devices.map(d => ({ ...d, color_hex: null, color_temp: mireds })),
+    })) : prev);
     inflight.current++; setActing(true);
     try {
-      const res = await fetch(`${API}/lights/group/set`, {
+      const res = await fetch(`${API}/lights/group/${encodeURIComponent(groupName)}/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ color_temp: mireds }),
@@ -236,12 +266,9 @@ export function useLights(refreshInterval = 5000) {
   const setLightColor = useCallback(async (id: string, hex: string) => {
     const prevData = data;
     ignoreUntil.current = Date.now() + 3000;
-    setData(prev => prev ? {
-      ...prev,
-      devices: prev.devices.map(d =>
-        d.id === id ? { ...d, color_hex: hex, color_temp: null } : d
-      ),
-    } : prev);
+    setData(prev => prev ? updateDevice(prev, id, d => ({
+      ...d, color_hex: hex, color_temp: null,
+    })) : prev);
     inflight.current++; setActing(true);
     try {
       const res = await fetch(`${API}/lights/${encodeURIComponent(id)}/set`, {
@@ -260,12 +287,9 @@ export function useLights(refreshInterval = 5000) {
   const setLightColorTemp = useCallback(async (id: string, mireds: number) => {
     const prevData = data;
     ignoreUntil.current = Date.now() + 3000;
-    setData(prev => prev ? {
-      ...prev,
-      devices: prev.devices.map(d =>
-        d.id === id ? { ...d, color_hex: null, color_temp: mireds } : d
-      ),
-    } : prev);
+    setData(prev => prev ? updateDevice(prev, id, d => ({
+      ...d, color_hex: null, color_temp: mireds,
+    })) : prev);
     inflight.current++; setActing(true);
     try {
       const res = await fetch(`${API}/lights/${encodeURIComponent(id)}/set`, {
@@ -284,20 +308,14 @@ export function useLights(refreshInterval = 5000) {
   const setTimer = useCallback(async (id: string, minutes: number) => {
     const prevData = data;
     ignoreUntil.current = Date.now() + 3000;
-    // Optimistic update
     setData(prev => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        devices: prev.devices.map(d =>
-          d.id === id ? {
-            ...d,
-            ...(minutes > 0
-              ? { state: 'ON', timer: { endsAt: Date.now() + minutes * 60000 } }
-              : { timer: null }),
-          } : d
-        ),
-      };
+      return updateDevice(prev, id, d => ({
+        ...d,
+        ...(minutes > 0
+          ? { state: 'ON', timer: { endsAt: Date.now() + minutes * 60000 } }
+          : { timer: null }),
+      }));
     });
     inflight.current++; setActing(true);
     try {
@@ -318,18 +336,26 @@ export function useLights(refreshInterval = 5000) {
     return setTimer(id, 0);
   }, [setTimer]);
 
-  return {
-    connected: data?.connected ?? false,
-    reconnecting: !loading && data !== null && !data.connected,
-    capabilities: data?.capabilities ?? { color: false, color_temp: false, color_temp_min: 150, color_temp_max: 500 },
-    group: data?.group ? {
-      ...data.group,
-      brightnessPercent: toPercent(data.group.brightness),
-    } : null,
-    devices: (data?.devices ?? []).map(d => ({
+  // Compute brightnessPercent for all groups and devices
+  const groups = (data?.groups ?? []).map(g => ({
+    ...g,
+    brightnessPercent: toPercent(g.brightness),
+    devices: g.devices.map(d => ({
       ...d,
       brightnessPercent: toPercent(d.brightness),
     })),
+  }));
+
+  const ungrouped = (data?.ungrouped ?? []).map(d => ({
+    ...d,
+    brightnessPercent: toPercent(d.brightness),
+  }));
+
+  return {
+    connected: data?.connected ?? false,
+    reconnecting: !loading && data !== null && !data.connected,
+    groups,
+    ungrouped,
     loading,
     acting,
     toggleGroup,
