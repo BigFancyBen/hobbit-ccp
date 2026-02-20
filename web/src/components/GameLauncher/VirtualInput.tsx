@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { Button } from '@hobbit/ui/8bit/button';
+import { Card } from '@hobbit/ui/8bit/card';
 
 const API = '/api/control';
 const SENSITIVITY = 2.0;
@@ -176,17 +177,19 @@ export function VirtualInput() {
   return (
     <div className="flex flex-col gap-2 flex-1 min-h-0">
       {/* Touchpad */}
-      <div
-        className="relative border-2 border-border rounded bg-muted/30 select-none flex-1 min-h-0"
-        style={{ touchAction: 'none' }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        <span className="absolute inset-0 flex items-center justify-center text-muted-foreground/30 text-sm pointer-events-none select-none">
-          Touchpad
-        </span>
-      </div>
+      <Card className="flex-1 min-h-0 flex flex-col">
+        <div
+          className="relative bg-muted/30 select-none flex-1 min-h-0"
+          style={{ touchAction: 'none' }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <span className="absolute inset-0 flex items-center justify-center text-muted-foreground/30 text-sm pointer-events-none select-none">
+            Touchpad
+          </span>
+        </div>
+      </Card>
 
       {/* Quick keys */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 shrink-0">

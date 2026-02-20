@@ -26,7 +26,8 @@ export function CameraTab() {
   return (
     <div className="py-4 mx-2 space-y-3">
       {/* Live video feed */}
-      <div className="relative w-full aspect-video bg-black rounded overflow-hidden">
+      <div className="relative w-full aspect-video bg-black border-y-6 border-foreground dark:border-ring overflow-hidden">
+        <div className="absolute inset-0 border-x-6 -mx-1.5 border-foreground dark:border-ring pointer-events-none z-10" aria-hidden="true" />
         <video
           ref={videoRef}
           className="w-full h-full object-contain"

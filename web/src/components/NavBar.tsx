@@ -1,9 +1,10 @@
 import { useLocation, Link } from 'wouter';
+import { LightbulbIcon, GamepadIcon, MusicNoteIcon } from '@/components/icons';
 
 const TABS = [
-  { label: 'Lights', href: '/' },
-  { label: 'Games', href: '/games' },
-  { label: 'Tunes', href: '/tunes' },
+  { icon: LightbulbIcon, href: '/', label: 'Lights' },
+  { icon: GamepadIcon, href: '/games', label: 'Games' },
+  { icon: MusicNoteIcon, href: '/tunes', label: 'Tunes' },
 ] as const;
 
 export function NavBar() {
@@ -15,17 +16,18 @@ export function NavBar() {
   };
 
   return (
-    <nav className="flex gap-2 flex-1">
-      {TABS.map(({ label, href }) => (
-        <Link key={href} href={href} className="flex-1">
+    <nav className="flex gap-1">
+      {TABS.map(({ icon: Icon, href, label }) => (
+        <Link key={href} href={href}>
           <button
-            className={`w-full h-12 text-sm retro touch-manipulation transition-colors ${
+            aria-label={label}
+            className={`h-10 w-10 flex items-center justify-center touch-manipulation transition-colors ${
               isActive(href)
                 ? 'bg-accent text-foreground'
-                : 'bg-secondary text-muted-foreground'
+                : 'text-muted-foreground'
             }`}
           >
-            {label}
+            <Icon />
           </button>
         </Link>
       ))}

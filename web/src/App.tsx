@@ -56,16 +56,18 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 overflow-x-hidden">
-      <div className="max-w-lg mx-auto">
+    <div className="h-[100dvh] flex flex-col p-2 sm:p-3 overflow-hidden">
+      <div className="max-w-lg mx-auto w-full flex flex-col flex-1 min-h-0">
         {/* Header with nav and settings */}
-        <header className="flex items-center gap-2 mb-6">
+        <header className="flex items-center gap-2 mb-3">
           <NavBar />
-          <SettingsModal onReboot={handleReboot} loading={loading} />
+          <div className="ml-auto">
+            <SettingsModal onReboot={handleReboot} loading={loading} />
+          </div>
         </header>
 
         {/* Page content with slide transitions */}
-        <div className="relative">
+        <div className="relative flex-1 min-h-0">
           {pageTransition((style, key) => (
             <animated.div
               style={{
@@ -74,6 +76,7 @@ function App() {
                 top: 0,
                 left: 0,
               }}
+              className={key === pageKey ? 'flex flex-col h-full' : ''}
             >
               {key === 'lights' && <LightControls />}
               {key === 'games' && <GamesPage />}

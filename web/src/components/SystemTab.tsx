@@ -6,35 +6,7 @@ import { Badge } from '@hobbit/ui/8bit/badge';
 import { Skeleton } from '@hobbit/ui/8bit/skeleton';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useControllers, type Controller } from '@/hooks/useControllers';
-
-function ControllerIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-    >
-      {/* D-pad left */}
-      <rect x="2" y="6" width="2" height="4" />
-      {/* D-pad center/body */}
-      <rect x="4" y="4" width="8" height="8" />
-      {/* D-pad right */}
-      <rect x="12" y="6" width="2" height="4" />
-      {/* Bumpers */}
-      <rect x="3" y="3" width="4" height="1" />
-      <rect x="9" y="3" width="4" height="1" />
-      {/* Grips */}
-      <rect x="3" y="12" width="3" height="2" />
-      <rect x="10" y="12" width="3" height="2" />
-      {/* Buttons (right side) */}
-      <rect x="10" y="6" width="2" height="2" className="fill-primary/30" />
-      {/* Stick (left side) */}
-      <rect x="5" y="6" width="2" height="2" className="fill-primary/30" />
-    </svg>
-  );
-}
+import { ControllerIcon } from '@/components/icons';
 
 function EmptySlot({ index }: { index: number }) {
   return (

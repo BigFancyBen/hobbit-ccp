@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader } from '@hobbit/ui/8bit/card';
 import { Skeleton } from '@hobbit/ui/8bit/skeleton';
 import { Switch } from '@hobbit/ui/8bit/switch';
 import { LightGroupCard } from '@/components/LightGroupCard';
-import { ColorPaletteModal } from '@/components/ColorPickerModal';
+import { ColorPaletteModal, miredsToApproxColor } from '@/components/ColorPickerModal';
 import { useLights } from '@/hooks/useLights';
 
 type ColorTarget =
@@ -32,18 +31,12 @@ export function LightControls() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader className="pb-2">
-          <Skeleton className="h-6 w-40" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3 mx-2">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-6 w-full" />
-            <Skeleton className="h-6 w-full" />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-3">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-6 w-full" />
+      </div>
     );
   }
 
@@ -62,7 +55,7 @@ export function LightControls() {
       : null;
 
   return (
-    <>
+    <div className="overflow-y-auto">
       <LightGroupCard
         name="Living Room"
         on={groupOn}
@@ -74,22 +67,29 @@ export function LightControls() {
         onColorClick={hasColorControls ? () => setColorTarget({ type: 'group', supports: capabilities }) : undefined}
       >
         {devices.length > 0 && (
-          <div className="space-y-3">
+          <div>
             {devices.map(device => {
               const hasDeviceColor = device.supports.color || device.supports.color_temp;
               return (
-                <div key={device.id} className="flex items-center justify-between">
+                <div key={device.id} className="flex items-center gap-2 py-2 border-b border-dashed border-muted-foreground/20 last:border-b-0">
+                  <span
+                    className={`inline-block size-2 shrink-0 ${device.state !== 'ON' ? 'bg-muted-foreground/40' : ''}`}
+                    style={device.state === 'ON' ? {
+                      backgroundColor: device.color_hex ?? (device.color_temp ? miredsToApproxColor(device.color_temp) : '#FFC58F'),
+                    } : undefined}
+                  />
                   {hasDeviceColor ? (
                     <button
                       onClick={() => setColorTarget({ type: 'device', id: device.id, name: device.name, supports: device.supports })}
-                      className="text-xs touch-manipulation active:scale-95 transition-transform text-left"
+                      className="text-xs retro touch-manipulation active:scale-95 transition-transform text-left"
                     >
                       {device.name}
                     </button>
                   ) : (
-                    <span className="text-xs">{device.name}</span>
+                    <span className="text-xs retro">{device.name}</span>
                   )}
                   <Switch
+                    className="ml-auto"
                     checked={device.state === 'ON'}
                     onCheckedChange={() => toggleLight(device.id)}
                   />
@@ -118,6 +118,6 @@ export function LightControls() {
           else setLightColorTemp(colorTarget.id, mireds);
         }}
       />
-    </>
+    </div>
   );
 }

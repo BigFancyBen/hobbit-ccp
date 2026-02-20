@@ -3,25 +3,7 @@ import { lockScroll, unlockScroll } from '@/lib/scroll-lock';
 import { createPortal } from 'react-dom';
 import { useTransition, animated, to } from '@react-spring/web';
 import { Button } from '@hobbit/ui/8bit/button';
-
-function CloseIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
-    </svg>
-  );
-}
+import { CloseIcon } from '@/components/icons';
 
 const COLOR_SWATCHES = [
   { hex: '#FF0000', label: 'Red' },
@@ -236,7 +218,7 @@ export function ColorPaletteModal({
 }
 
 /** Approximate mireds → display color for the swatch preview */
-function miredsToApproxColor(mireds: number): string {
+export function miredsToApproxColor(mireds: number): string {
   if (mireds >= 450) return '#FF9329'; // Candle / very warm
   if (mireds >= 330) return '#FFC58F'; // Warm white
   if (mireds >= 230) return '#FFF1E0'; // Neutral

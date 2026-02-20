@@ -1,25 +1,7 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@hobbit/ui/8bit/card';
 import { Switch } from '@hobbit/ui/8bit/switch';
 import { Slider } from '@hobbit/ui/8bit/slider';
-
-function PaletteIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-      shapeRendering="crispEdges"
-    >
-      <rect x="1" y="1" width="6" height="6" fill="#ef4444" />
-      <rect x="9" y="1" width="6" height="6" fill="#3b82f6" />
-      <rect x="1" y="9" width="6" height="6" fill="#22c55e" />
-      <rect x="9" y="9" width="6" height="6" fill="#eab308" />
-    </svg>
-  );
-}
+import { PaletteIcon } from '@/components/icons';
 
 interface LightGroupCardProps {
   name: string;
@@ -57,60 +39,56 @@ export function LightGroupCard({
   }, [brightnessPercent]);
 
   return (
-    <Card variant="compact">
-      <CardHeader variant="compact" className={children ? 'border-b-6 border-foreground dark:border-ring' : ''}>
-        <div className={`bg-muted/50 rounded-md px-3 py-3 ${acting ? 'animate-shimmer' : ''}`}>
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              <CardTitle className="text-sm">{name}</CardTitle>
-              {reconnecting && (
-                <span className="text-[10px] text-muted-foreground animate-pulse mt-1">
-                  Connecting...
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {onColorClick && (
-                <button
-                  onClick={onColorClick}
-                  aria-label="Change light color"
-                  className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors touch-manipulation active:scale-95"
-                >
-                  <PaletteIcon />
-                </button>
-              )}
-              <Switch
-                checked={on}
-                onCheckedChange={onToggle}
-              />
-            </div>
+    <div>
+      <div className={`bg-muted/50 rounded-md px-3 py-3 ${acting ? 'animate-shimmer' : ''}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold retro">{name}</span>
+            {reconnecting && (
+              <span className="text-[10px] text-muted-foreground animate-pulse mt-1">
+                Connecting...
+              </span>
+            )}
           </div>
-          <div className="mt-3">
-            <Slider
-              value={[sliderValue]}
-              min={0}
-              max={100}
-              step={1}
-              trackBg={on ? 'bg-yellow-400' : 'bg-muted-foreground/40'}
-              onValueChange={(val: number[]) => {
-                dragging.current = true;
-                setSliderValue(val[0]);
-              }}
-              onValueCommit={(val: number[]) => {
-                dragging.current = false;
-                onBrightness(val[0]);
-              }}
+          <div className="flex items-center gap-2">
+            {onColorClick && (
+              <button
+                onClick={onColorClick}
+                aria-label="Change light color"
+                className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors touch-manipulation active:scale-95"
+              >
+                <PaletteIcon />
+              </button>
+            )}
+            <Switch
+              checked={on}
+              onCheckedChange={onToggle}
             />
           </div>
         </div>
-      </CardHeader>
+        <div className="mt-3">
+          <Slider
+            value={[sliderValue]}
+            min={0}
+            max={100}
+            step={1}
+            trackBg={on ? 'bg-yellow-400' : 'bg-muted-foreground/40'}
+            onValueChange={(val: number[]) => {
+              dragging.current = true;
+              setSliderValue(val[0]);
+            }}
+            onValueCommit={(val: number[]) => {
+              dragging.current = false;
+              onBrightness(val[0]);
+            }}
+          />
+        </div>
+      </div>
       {children && (
-        <CardContent className="pb-6">
-          <div className={`mx-2 ${acting ? 'animate-shimmer' : ''}`}>
-            {children}
-          </div>
-        </CardContent>
+        <div className={`mx-2 mt-3 ${acting ? 'animate-shimmer' : ''}`}>
+          {children}
+        </div>
       )}
-    </Card>
+    </div>
   );
 }

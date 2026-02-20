@@ -1,26 +1,5 @@
 import { Spinner } from '@hobbit/ui/8bit/spinner';
-
-function PixelChevron() {
-  // 5x7 pixel-art right chevron (>) using 1px blocks
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="10"
-      height="14"
-      viewBox="0 0 5 7"
-      fill="currentColor"
-      shapeRendering="crispEdges"
-    >
-      <rect x="0" y="0" width="2" height="1" />
-      <rect x="1" y="1" width="2" height="1" />
-      <rect x="2" y="2" width="2" height="1" />
-      <rect x="3" y="3" width="2" height="1" />
-      <rect x="2" y="4" width="2" height="1" />
-      <rect x="1" y="5" width="2" height="1" />
-      <rect x="0" y="6" width="2" height="1" />
-    </svg>
-  );
-}
+import { PixelChevron } from '@/components/icons';
 
 interface AppRowProps {
   appName: string;

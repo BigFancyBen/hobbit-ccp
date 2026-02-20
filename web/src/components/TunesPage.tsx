@@ -10,8 +10,8 @@ import { useSearch, useQueue, useSpotifyQueue, useSpotifyHistory, useNowPlaying 
 
 const SEARCH_PER_PAGE = 5;
 const MODAL_PER_PAGE = 8;
-const ROW_HEIGHT = 56; // px — TrackRow height (h-10 art + p-2 padding)
-const ROW_GAP = 4;     // px — space-y-1
+const ROW_HEIGHT = 72; // px — TrackRow height (h-14 art + p-2 padding)
+const ROW_GAP = 0;     // px — no gap between rows
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -24,37 +24,24 @@ function relativeTime(iso: string): string {
   return `${days}d ago`;
 }
 
-function CloseIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
-    </svg>
-  );
-}
+import { CloseIcon, HistoryIcon } from '@/components/icons';
 
 interface TrackRowProps {
   name: string;
   artist: string;
   albumArt?: string;
+  artSize?: 'sm' | 'lg';
   right?: React.ReactNode;
   highlight?: boolean;
   onClick?: () => void;
   disabled?: boolean;
 }
 
-function TrackRow({ name, artist, albumArt, right, highlight, onClick, disabled }: TrackRowProps) {
+const ART_SIZES = { sm: 'w-10 h-10', lg: 'w-14 h-14' } as const;
+
+function TrackRow({ name, artist, albumArt, artSize = 'sm', right, highlight, onClick, disabled }: TrackRowProps) {
   const Comp = onClick ? 'button' : 'div';
+  const sizeClass = ART_SIZES[artSize];
   return (
     <Comp
       onClick={onClick}
@@ -64,12 +51,18 @@ function TrackRow({ name, artist, albumArt, right, highlight, onClick, disabled 
       } ${highlight ? 'bg-accent/30' : ''}`}
     >
       {albumArt && (
-        <img
-          src={albumArt}
-          alt=""
-          className="w-10 h-10 flex-shrink-0"
-          style={{ imageRendering: 'auto' }}
-        />
+        <div className={`relative flex-shrink-0 ${sizeClass}`}>
+          <img
+            src={albumArt}
+            alt=""
+            className="w-full h-full object-cover border-y-4 border-foreground dark:border-ring"
+            style={{ imageRendering: 'auto' }}
+          />
+          <div
+            className="absolute inset-0 border-x-4 -mx-1 border-foreground dark:border-ring pointer-events-none"
+            aria-hidden="true"
+          />
+        </div>
       )}
       <div className="min-w-0 flex-1">
         <p className="text-sm truncate retro">{name}</p>
@@ -175,26 +168,6 @@ function Modal({ open, onClose, title, children }: ModalProps) {
   );
 }
 
-function HistoryIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-      <path d="M3 3v5h5" />
-      <path d="M12 7v5l4 2" />
-    </svg>
-  );
-}
-
 /* ── History Modal ── */
 
 function HistoryModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -219,23 +192,25 @@ function HistoryModal({ open, onClose }: { open: boolean; onClose: () => void })
           {[...Array(4)].map((_, i) => <TrackRowSkeleton key={i} />)}
         </div>
       ) : (
-        <div className="space-y-1">
-          {pageItems.map((track, i) => (
-            <TrackRow
-              key={`${page}-${i}`}
-              name={track.name}
-              artist={track.artist}
-              albumArt={track.albumArt}
-              right={
-                <span className="text-[10px] text-muted-foreground retro flex-shrink-0">
-                  {relativeTime(track.playedAt)}
-                </span>
-              }
-            />
-          ))}
-          {tracks.length === 0 && (
-            <p className="text-xs text-muted-foreground retro py-4 text-center">No history yet</p>
-          )}
+        <div>
+          <div className="space-y-1" style={{ minHeight: MODAL_PER_PAGE * 56 + (MODAL_PER_PAGE - 1) * 4 }}>
+            {pageItems.map((track, i) => (
+              <TrackRow
+                key={`${page}-${i}`}
+                name={track.name}
+                artist={track.artist}
+                albumArt={track.albumArt}
+                right={
+                  <span className="text-[10px] text-muted-foreground retro flex-shrink-0">
+                    {relativeTime(track.playedAt)}
+                  </span>
+                }
+              />
+            ))}
+            {tracks.length === 0 && (
+              <p className="text-xs text-muted-foreground retro py-4 text-center">No history yet</p>
+            )}
+          </div>
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} className="pt-2" />
         </div>
       )}
@@ -252,12 +227,18 @@ function NowPlaying() {
   return (
     <div className="flex items-center gap-3 p-3 rounded bg-accent/20 shrink-0">
       {track.albumArt && (
-        <img
-          src={track.albumArt}
-          alt=""
-          className="w-14 h-14 flex-shrink-0"
-          style={{ imageRendering: 'auto' }}
-        />
+        <div className="relative flex-shrink-0 w-14 h-14">
+          <img
+            src={track.albumArt}
+            alt=""
+            className="w-full h-full border-y-4 border-foreground dark:border-ring"
+            style={{ imageRendering: 'auto' }}
+          />
+          <div
+            className="absolute inset-0 border-x-4 -mx-1 border-foreground dark:border-ring pointer-events-none"
+            aria-hidden="true"
+          />
+        </div>
       )}
       <div className="min-w-0 flex-1">
         <p className="text-sm truncate retro">{track.name}</p>
@@ -339,28 +320,16 @@ export function TunesPage() {
   };
 
   return (
-    <div className="h-[calc(100dvh-6.5rem)] flex flex-col gap-4 mx-2 overflow-hidden">
-      {/* Header row */}
-      <div className="flex items-center justify-between shrink-0">
-        <h2 className="text-lg retro">Tunes</h2>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10 touch-manipulation active:scale-95"
-          onClick={() => setHistoryOpen(true)}
-        >
-          <HistoryIcon />
-        </Button>
-      </div>
-
-      {/* Search combo box */}
-      <div className="relative shrink-0" ref={inputRef} onBlur={handleBlur} onFocus={handleFocus}>
-        <Input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search or paste Spotify link..."
-        />
+    <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
+      {/* Search + history row */}
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="relative flex-1 mx-2" ref={inputRef} onBlur={handleBlur} onFocus={handleFocus}>
+          <Input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search or paste"
+          />
 
         {/* Dropdown */}
         {dropdownOpen && (query.trim() !== '') && (
@@ -406,6 +375,15 @@ export function TunesPage() {
             </div>
           </div>
         )}
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10 touch-manipulation active:scale-95 shrink-0"
+          onClick={() => setHistoryOpen(true)}
+        >
+          <HistoryIcon />
+        </Button>
       </div>
 
       <NowPlaying />
@@ -422,13 +400,14 @@ export function TunesPage() {
         ) : (
           <>
             <div ref={trackListRef} className="flex-1 min-h-0 overflow-hidden">
-              <div className="space-y-1">
+              <div>
                 {queuePageItems.map((track, i) => (
                   <TrackRow
                     key={`${queuePage}-${i}`}
                     name={track.name}
                     artist={track.artist}
                     albumArt={track.albumArt}
+                    artSize="lg"
                   />
                 ))}
               </div>

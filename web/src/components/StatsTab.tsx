@@ -6,27 +6,7 @@ import { Card, CardHeader, CardContent } from '@hobbit/ui/8bit/card';
 import { Badge } from '@hobbit/ui/8bit/badge';
 import { Progress } from '@hobbit/ui/8bit/progress';
 import { Skeleton } from '@hobbit/ui/8bit/skeleton';
-
-function MonitorIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="28"
-      height="28"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-    >
-      {/* Screen body */}
-      <rect x="2" y="2" width="12" height="8" />
-      {/* Screen inner (cut out for "screen" look) */}
-      <rect x="3" y="3" width="10" height="6" className="fill-primary/20" />
-      {/* Stand */}
-      <rect x="6" y="11" width="4" height="2" />
-      {/* Base */}
-      <rect x="4" y="13" width="8" height="1" />
-    </svg>
-  );
-}
+import { MonitorIcon } from '@/components/icons';
 
 function StatBar({
   label,
