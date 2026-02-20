@@ -88,6 +88,13 @@
       when: tailscale_fqdn is defined
       tags: [docker]
 
+    - name: Template go2rtc config
+      template:
+        src: ../files/go2rtc.yaml
+        dest: "{{ hobbit_dir }}/go2rtc.yaml"
+      notify: Restart docker services
+      tags: [docker]
+
     - name: Copy Mosquitto config
       copy:
         src: ../files/mosquitto.conf

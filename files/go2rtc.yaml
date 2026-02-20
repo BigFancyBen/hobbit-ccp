@@ -1,0 +1,5 @@
+streams:
+  lorex:
+    - "rtsp://admin:{{ camera_password | urlencode }}@192.168.0.105:554/cam/realmonitor?channel=1&subtype=1"
+api:
+  listen: ":1984"

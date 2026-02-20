@@ -5,6 +5,7 @@ import { useTransition, animated } from '@react-spring/web';
 import { Button } from '@hobbit/ui/8bit/button';
 import { StatsTab } from './StatsTab';
 import { SystemTab } from './SystemTab';
+import { CameraTab } from './CameraTab';
 
 function CogIcon() {
   return (
@@ -49,7 +50,7 @@ interface SettingsModalProps {
   loading: string | null;
 }
 
-const TABS = ['system', 'stats'] as const;
+const TABS = ['system', 'stats', 'camera'] as const;
 type TabKey = (typeof TABS)[number];
 
 export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
@@ -142,28 +143,21 @@ export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
                   </Button>
                 </div>
 
-                {/* Simple Tab Buttons */}
+                {/* Tab Buttons */}
                 <div className="flex gap-2 mb-3 shrink-0">
-                  <button
-                    onClick={() => setTab('system')}
-                    className={`flex-1 h-12 text-sm retro touch-manipulation transition-colors ${
-                      tab === 'system'
-                        ? 'bg-accent text-foreground'
-                        : 'bg-secondary text-muted-foreground'
-                    }`}
-                  >
-                    System
-                  </button>
-                  <button
-                    onClick={() => setTab('stats')}
-                    className={`flex-1 h-12 text-sm retro touch-manipulation transition-colors ${
-                      tab === 'stats'
-                        ? 'bg-accent text-foreground'
-                        : 'bg-secondary text-muted-foreground'
-                    }`}
-                  >
-                    Stats
-                  </button>
+                  {TABS.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTab(t)}
+                      className={`flex-1 h-12 text-[11px] retro touch-manipulation transition-colors ${
+                        tab === t
+                          ? 'bg-accent text-foreground'
+                          : 'bg-secondary text-muted-foreground'
+                      }`}
+                    >
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Tab Content */}
@@ -179,6 +173,7 @@ export function SettingsModal({ onReboot, loading }: SettingsModalProps) {
                     >
                       {currentTab === 'system' && <SystemTab onReboot={onReboot} loading={loading} />}
                       {currentTab === 'stats' && <StatsTab />}
+                      {currentTab === 'camera' && <CameraTab />}
                     </animated.div>
                   ))}
                 </div>

@@ -12,6 +12,11 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      '/api/camera/ws': {
+        target: 'http://192.168.0.67',
+        changeOrigin: true,
+        ws: true
+      },
       '/api': {
         target: 'http://192.168.0.67',
         changeOrigin: true

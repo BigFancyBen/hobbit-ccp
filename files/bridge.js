@@ -1304,6 +1304,133 @@ app.get('/spotify/history', async (req, res) => {
   }
 });
 
+// ============================================================
+// Camera PTZ — ONVIF SOAP with HTTP Digest auth
+// ============================================================
+const crypto = require('crypto');
+
+const CAMERA_HOST = '192.168.0.105';
+const CAMERA_USER = 'admin';
+const CAMERA_PASS = process.env.CAMERA_PASSWORD || '';
+const ONVIF_PTZ_URL = `http://${CAMERA_HOST}/onvif/ptz_service`;
+const ONVIF_PROFILE = 'Profile000';
+
+function parseDigestChallenge(header) {
+  const params = {};
+  const regex = /(\w+)="?([^",]+)"?/g;
+  let m;
+  while ((m = regex.exec(header)) !== null) {
+    params[m[1]] = m[2];
+  }
+  return params;
+}
+
+function buildDigestHeader(method, uri, challenge, body) {
+  const { realm, nonce, qop } = challenge;
+  const nc = '00000001';
+  const cnonce = crypto.randomBytes(8).toString('hex');
+  const ha1 = crypto.createHash('md5').update(`${CAMERA_USER}:${realm}:${CAMERA_PASS}`).digest('hex');
+  const ha2 = crypto.createHash('md5').update(`${method}:${uri}`).digest('hex');
+  const response = qop
+    ? crypto.createHash('md5').update(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`).digest('hex')
+    : crypto.createHash('md5').update(`${ha1}:${nonce}:${ha2}`).digest('hex');
+  let header = `Digest username="${CAMERA_USER}", realm="${realm}", nonce="${nonce}", uri="${uri}", response="${response}"`;
+  if (qop) header += `, qop=${qop}, nc=${nc}, cnonce="${cnonce}"`;
+  return header;
+}
+
+async function onvifRequest(soapBody) {
+  const envelope = `<?xml version="1.0" encoding="UTF-8"?>
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"
+            xmlns:tptz="http://www.onvif.org/ver20/ptz/wsdl"
+            xmlns:tt="http://www.onvif.org/ver10/schema">
+  <s:Body>${soapBody}</s:Body>
+</s:Envelope>`;
+
+  // Step 1: unauthenticated request to get digest challenge
+  const url = new URL(ONVIF_PTZ_URL);
+  const res1 = await fetch(ONVIF_PTZ_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/soap+xml; charset=utf-8' },
+    body: envelope,
+  });
+
+  if (res1.status !== 401) return res1;
+
+  const wwwAuth = res1.headers.get('www-authenticate');
+  if (!wwwAuth) throw new Error('No WWW-Authenticate header');
+
+  // Step 2: authenticated retry
+  const challenge = parseDigestChallenge(wwwAuth);
+  const authHeader = buildDigestHeader('POST', url.pathname, challenge, envelope);
+
+  return fetch(ONVIF_PTZ_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/soap+xml; charset=utf-8',
+      Authorization: authHeader,
+    },
+    body: envelope,
+  });
+}
+
+// POST /camera/ptz — ContinuousMove { pan, tilt, zoom }
+app.post('/camera/ptz', async (req, res) => {
+  const pan = Math.max(-1, Math.min(1, Number(req.body.pan) || 0));
+  const tilt = Math.max(-1, Math.min(1, Number(req.body.tilt) || 0));
+  const zoom = Math.max(-1, Math.min(1, Number(req.body.zoom) || 0));
+
+  try {
+    await onvifRequest(`
+    <tptz:ContinuousMove>
+      <tptz:ProfileToken>${ONVIF_PROFILE}</tptz:ProfileToken>
+      <tptz:Velocity>
+        <tt:PanTilt x="${pan}" y="${tilt}"/>
+        <tt:Zoom x="${zoom}"/>
+      </tptz:Velocity>
+    </tptz:ContinuousMove>`);
+    res.json({ status: 'ok' });
+  } catch (e) {
+    console.error('PTZ move error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /camera/ptz/stop — Stop all PTZ movement
+app.post('/camera/ptz/stop', async (req, res) => {
+  try {
+    await onvifRequest(`
+    <tptz:Stop>
+      <tptz:ProfileToken>${ONVIF_PROFILE}</tptz:ProfileToken>
+      <tptz:PanTilt>true</tptz:PanTilt>
+      <tptz:Zoom>true</tptz:Zoom>
+    </tptz:Stop>`);
+    res.json({ status: 'ok' });
+  } catch (e) {
+    console.error('PTZ stop error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /camera/preset/:token — GotoPreset
+app.post('/camera/preset/:token', async (req, res) => {
+  const token = req.params.token;
+  if (!['1', '2'].includes(token)) {
+    return res.status(400).json({ error: 'Invalid preset token' });
+  }
+  try {
+    await onvifRequest(`
+    <tptz:GotoPreset>
+      <tptz:ProfileToken>${ONVIF_PROFILE}</tptz:ProfileToken>
+      <tptz:PresetToken>${token}</tptz:PresetToken>
+    </tptz:GotoPreset>`);
+    res.json({ status: 'ok' });
+  } catch (e) {
+    console.error('PTZ preset error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Hobbit Bridge running on port ${PORT}`);
