@@ -1305,7 +1305,7 @@ app.get('/spotify/history', async (req, res) => {
 });
 
 // ============================================================
-// Camera PTZ — ONVIF SOAP with HTTP Digest auth
+// Camera PTZ — ONVIF SOAP with HTTP Digest auth (presets only)
 // ============================================================
 const crypto = require('crypto');
 
@@ -1325,7 +1325,7 @@ function parseDigestChallenge(header) {
   return params;
 }
 
-function buildDigestHeader(method, uri, challenge, body) {
+function buildDigestHeader(method, uri, challenge) {
   const { realm, nonce, qop } = challenge;
   const nc = '00000001';
   const cnonce = crypto.randomBytes(8).toString('hex');
@@ -1347,7 +1347,6 @@ async function onvifRequest(soapBody) {
   <s:Body>${soapBody}</s:Body>
 </s:Envelope>`;
 
-  // Step 1: unauthenticated request to get digest challenge
   const url = new URL(ONVIF_PTZ_URL);
   const res1 = await fetch(ONVIF_PTZ_URL, {
     method: 'POST',
@@ -1360,9 +1359,8 @@ async function onvifRequest(soapBody) {
   const wwwAuth = res1.headers.get('www-authenticate');
   if (!wwwAuth) throw new Error('No WWW-Authenticate header');
 
-  // Step 2: authenticated retry
   const challenge = parseDigestChallenge(wwwAuth);
-  const authHeader = buildDigestHeader('POST', url.pathname, challenge, envelope);
+  const authHeader = buildDigestHeader('POST', url.pathname, challenge);
 
   return fetch(ONVIF_PTZ_URL, {
     method: 'POST',
@@ -1373,44 +1371,6 @@ async function onvifRequest(soapBody) {
     body: envelope,
   });
 }
-
-// POST /camera/ptz — ContinuousMove { pan, tilt, zoom }
-app.post('/camera/ptz', async (req, res) => {
-  const pan = Math.max(-1, Math.min(1, Number(req.body.pan) || 0));
-  const tilt = Math.max(-1, Math.min(1, Number(req.body.tilt) || 0));
-  const zoom = Math.max(-1, Math.min(1, Number(req.body.zoom) || 0));
-
-  try {
-    await onvifRequest(`
-    <tptz:ContinuousMove>
-      <tptz:ProfileToken>${ONVIF_PROFILE}</tptz:ProfileToken>
-      <tptz:Velocity>
-        <tt:PanTilt x="${pan}" y="${tilt}"/>
-        <tt:Zoom x="${zoom}"/>
-      </tptz:Velocity>
-    </tptz:ContinuousMove>`);
-    res.json({ status: 'ok' });
-  } catch (e) {
-    console.error('PTZ move error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// POST /camera/ptz/stop — Stop all PTZ movement
-app.post('/camera/ptz/stop', async (req, res) => {
-  try {
-    await onvifRequest(`
-    <tptz:Stop>
-      <tptz:ProfileToken>${ONVIF_PROFILE}</tptz:ProfileToken>
-      <tptz:PanTilt>true</tptz:PanTilt>
-      <tptz:Zoom>true</tptz:Zoom>
-    </tptz:Stop>`);
-    res.json({ status: 'ok' });
-  } catch (e) {
-    console.error('PTZ stop error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
 
 // POST /camera/preset/:token — GotoPreset
 app.post('/camera/preset/:token', async (req, res) => {
