@@ -750,10 +750,15 @@ const deviceTimers = new Map(); // { timeoutId, endsAt }
 function setDeviceTimer(name, ms) {
   clearDeviceTimer(name);
   const endsAt = Date.now() + ms;
-  const timeoutId = setTimeout(() => {
+  const timeoutId = setTimeout(async () => {
     console.log(`Timer expired for ${name}, turning OFF`);
-    if (mqttClient?.connected) {
+    try {
+      touchLights();
+      await ensureMqttConnected();
       mqttClient.publish(`zigbee2mqtt/${name}/set`, JSON.stringify({ state: 'OFF' }));
+      console.log(`Timer OFF command sent for ${name}`);
+    } catch (err) {
+      console.error(`Timer failed to send OFF for ${name}:`, err.message);
     }
     deviceTimers.delete(name);
   }, ms);
