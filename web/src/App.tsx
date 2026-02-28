@@ -6,6 +6,7 @@ import { NavBar } from '@/components/NavBar';
 import { LightControls } from '@/components/LightControls';
 import { GamesPage } from '@/components/GameLauncher';
 import { TunesPage } from '@/components/TunesPage';
+import { WifiPage } from '@/components/WifiPage';
 
 const API = '/api/control';
 
@@ -73,6 +74,11 @@ function App() {
     }
     setLoading(null);
   };
+
+  // Wi-Fi kiosk page — standalone, no nav/transitions
+  if (location === '/wifi') {
+    return <WifiPage />;
+  }
 
   // Redirect unknown paths to /
   if (location !== '/' && location !== '/lights' && location !== '/games' && location !== '/tunes') {

@@ -223,6 +223,13 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.get('/wifi', (req, res) => {
+  const ssid = process.env.WIFI_SSID;
+  const password = process.env.WIFI_PASSWORD;
+  if (!ssid || !password) return res.status(503).json({ error: 'Wi-Fi not configured' });
+  res.json({ ssid, password });
+});
+
 // GPU stats - uses intel_gpu_top for accurate utilization (requires intel-gpu-tools)
 let gpuStats = { usage_percent: 0, render: 0, video: 0, frequency_mhz: 0 };
 let gpuStatsProcess = null;
