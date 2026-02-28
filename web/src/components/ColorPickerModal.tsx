@@ -28,7 +28,7 @@ const WHITE_PRESETS = [
 
 /** Find the closest warmth preset to a given mired value */
 function closestPresetMireds(mireds: number): number {
-  let best = WHITE_PRESETS[0].mireds;
+  let best: number = WHITE_PRESETS[0].mireds;
   let bestDist = Math.abs(mireds - best);
   for (const p of WHITE_PRESETS) {
     const dist = Math.abs(mireds - p.mireds);
