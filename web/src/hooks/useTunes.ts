@@ -183,6 +183,12 @@ export function useSpotifyQueue() {
     };
   }, [refetch]);
 
+  useEffect(() => {
+    const es = new EventSource(`${API}/spotify/events`);
+    es.addEventListener('queue-updated', () => refetch());
+    return () => es.close();
+  }, [refetch]);
+
   return { data, loading, refetch };
 }
 

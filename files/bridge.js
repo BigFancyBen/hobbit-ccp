@@ -714,6 +714,7 @@ let deviceState = {};     // friendly_name → { state, brightness, color_hex, c
 let lightsState = {};     // groupName → { state, brightness, color_hex, color_temp }
 let allDevices = [];      // cached bridge/devices list
 let subscribedTopics = new Set();
+let groupsResolved = false;
 
 // Initialize each group
 for (const g of LIGHT_GROUPS) {
@@ -829,6 +830,7 @@ function startLightsMonitor() {
 
       console.log(`Light group "${groupName}" members:`, groupMembers[groupName].map(m => m.friendly_name));
     }
+    groupsResolved = true;
 
     // Subscribe to individual device topics for all groups (skip already-subscribed)
     for (const groupName of LIGHT_GROUPS) {
@@ -907,6 +909,7 @@ function stopLightsMonitor() {
   mqttClient.end();
   mqttClient = null;
   subscribedTopics.clear();
+  groupsResolved = false;
   if (lightsIdleCheck) {
     clearInterval(lightsIdleCheck);
     lightsIdleCheck = null;
@@ -1009,7 +1012,7 @@ app.get('/lights', async (req, res) => {
   }
 
   res.json({
-    connected: mqttClient?.connected || false,
+    connected: (mqttClient?.connected && groupsResolved) || false,
     groups,
     ungrouped,
   });
@@ -1149,6 +1152,16 @@ let spotifyTokens = null; // { access_token, refresh_token, expires_at }
 
 // Spotify response cache — keyed by endpoint string, stores { json, status, ts }
 const spotifyCache = new Map();
+
+// SSE clients for real-time queue update notifications
+const sseClients = new Set();
+
+function broadcastSSE(event, data) {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const res of sseClients) {
+    res.write(payload);
+  }
+}
 const SPOTIFY_CACHE_TTL = {
   '/me/player/currently-playing': 5_000,
   '/me/player/queue': 10_000,
@@ -1348,6 +1361,7 @@ app.post('/spotify/queue', async (req, res) => {
       if (key.startsWith('/me/player')) spotifyCache.delete(key);
     }
     res.json({ status: 'ok' });
+    broadcastSSE('queue-updated', {});
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -1375,6 +1389,7 @@ app.post('/spotify/queue-link', async (req, res) => {
       for (const key of spotifyCache.keys()) {
         if (key.startsWith('/me/player')) spotifyCache.delete(key);
       }
+      broadcastSSE('queue-updated', {});
       return res.json({ queued: 1, total: 1 });
     }
 
@@ -1406,9 +1421,23 @@ app.post('/spotify/queue-link', async (req, res) => {
       if (key.startsWith('/me/player')) spotifyCache.delete(key);
     }
     res.json({ queued, total: tracks.length });
+    broadcastSSE('queue-updated', {});
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// SSE stream for real-time queue update notifications
+app.get('/spotify/events', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.write('\n');
+  sseClients.add(res);
+  req.on('close', () => sseClients.delete(res));
 });
 
 // Get player queue (currently playing + upcoming)
