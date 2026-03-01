@@ -94,10 +94,9 @@ export function useLights(refreshInterval = 5000) {
       if (Date.now() < ignoreUntil.current) return;
       setData(result);
       setCache(CACHE_KEY, result);
-      setLoading(false);
+      if (result.connected) setLoading(false);
     } catch (err) {
       console.error('Failed to fetch lights:', err);
-      setLoading(false);
     }
   }, []);
 

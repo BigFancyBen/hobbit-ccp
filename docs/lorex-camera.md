@@ -114,10 +114,7 @@ Can save, recall, and remove presets via `SetPreset`, `GotoPreset`, `RemovePrese
 
 ## NOT Controllable via ONVIF
 
-**Physical spotlight/LED** — The white LED spotlight is controlled through the Lorex Home app's proprietary cloud protocol. This camera's HTTP server only exposes ONVIF endpoints (no Dahua CGI API at `/cgi-bin/`). The spotlight requires either:
-- The Lorex Home app (cloud-based)
-- Potentially the Dahua DVRIP/binary protocol on port 37777 (not open on this camera)
-- A Lorex cloud API (undocumented)
+**Physical spotlight/LED** — The white LED spotlight cannot be toggled on/off programmatically. The Dahua RPC2 JSON API on port 80 (`/RPC2_Login`, `/RPC2`) allows reading the light config (`configManager.getConfig` Lighting_V2) and changing the mode (Manual/Auto/Off), but `configManager.setConfig` only changes the *behavior mode* — it does not physically toggle the LED. The `CoaxialControlIO.control` method exists but returns "Unknown error" for all parameter formats. The `/cgi-bin/` CGI endpoints are not available (404). The spotlight requires the Lorex Home app (cloud-based).
 
 ## RTSP Stream URLs
 
