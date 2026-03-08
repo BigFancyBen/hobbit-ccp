@@ -45,13 +45,58 @@
         - ssl
       tags: [infra]
 
-    - name: Generate self-signed SSL certificate
+    - name: Generate local CA key
       command: >
-        openssl req -x509 -nodes -days 3650 -newkey rsa:2048
-        -keyout {{ hobbit_dir }}/ssl/hobbit.key
-        -out {{ hobbit_dir }}/ssl/hobbit.crt
+        openssl genrsa -out {{ hobbit_dir }}/ssl/hobbit-ca.key 2048
+      args:
+        creates: "{{ hobbit_dir }}/ssl/hobbit-ca.key"
+      tags: [docker]
+
+    - name: Generate local CA certificate (10 year)
+      command: >
+        openssl req -x509 -new -nodes -key {{ hobbit_dir }}/ssl/hobbit-ca.key
+        -sha256 -days 3650
+        -out {{ hobbit_dir }}/ssl/hobbit-ca.crt
+        -subj "/CN=Hobbit Home CA"
+      args:
+        creates: "{{ hobbit_dir }}/ssl/hobbit-ca.crt"
+      tags: [docker]
+
+    - name: Generate server key
+      command: >
+        openssl genrsa -out {{ hobbit_dir }}/ssl/hobbit.key 2048
+      args:
+        creates: "{{ hobbit_dir }}/ssl/hobbit.key"
+      tags: [docker]
+
+    - name: Generate server CSR
+      command: >
+        openssl req -new -key {{ hobbit_dir }}/ssl/hobbit.key
+        -out {{ hobbit_dir }}/ssl/hobbit.csr
         -subj "/CN=hobbit.house"
-        -addext "subjectAltName=DNS:hobbit.house,DNS:hobbit,DNS:hobbit.local,IP:192.168.0.67"
+      args:
+        creates: "{{ hobbit_dir }}/ssl/hobbit.csr"
+      tags: [docker]
+
+    - name: Create SAN extension file
+      copy:
+        content: |
+          authorityKeyIdentifier=keyid,issuer
+          basicConstraints=CA:FALSE
+          keyUsage=digitalSignature,keyEncipherment
+          subjectAltName=DNS:hobbit.house,DNS:hobbit,DNS:hobbit.local,IP:192.168.0.67
+        dest: "{{ hobbit_dir }}/ssl/hobbit-ext.cnf"
+      tags: [docker]
+
+    - name: Sign server cert with local CA (825 days)
+      command: >
+        openssl x509 -req -in {{ hobbit_dir }}/ssl/hobbit.csr
+        -CA {{ hobbit_dir }}/ssl/hobbit-ca.crt
+        -CAkey {{ hobbit_dir }}/ssl/hobbit-ca.key
+        -CAcreateserial
+        -out {{ hobbit_dir }}/ssl/hobbit.crt
+        -days 825 -sha256
+        -extfile {{ hobbit_dir }}/ssl/hobbit-ext.cnf
       args:
         creates: "{{ hobbit_dir }}/ssl/hobbit.crt"
       notify: Restart docker services

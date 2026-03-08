@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getCache, setCache } from '@/lib/cache';
 
 const API_BASE = '/api/control';
@@ -27,6 +27,7 @@ const DEFAULT: ControllerState = { dongleConnected: false, controllers: [], pair
 export function useControllers(): UseControllersResult {
   const [data, setData] = useState<ControllerState>(() => getCache<ControllerState>(CACHE_KEY) ?? DEFAULT);
   const [loading, setLoading] = useState(() => !getCache(CACHE_KEY));
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const fetchControllers = async () => {
@@ -43,9 +44,30 @@ export function useControllers(): UseControllersResult {
       }
     };
 
-    fetchControllers();
-    const interval = setInterval(fetchControllers, 5000);
-    return () => clearInterval(interval);
+    function start() {
+      fetchControllers();
+      intervalRef.current = setInterval(fetchControllers, 5000);
+    }
+
+    function stop() {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    }
+
+    function onVisibility() {
+      if (document.hidden) {
+        stop();
+      } else {
+        start();
+      }
+    }
+
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []);
 
   return { ...data, loading };

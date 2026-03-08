@@ -59,6 +59,8 @@ export function WifiPage() {
                   <p className="text-muted-foreground text-[10px] mb-1">Password</p>
                   <p className="text-foreground text-xs select-all">{wifi.password}</p>
                 </div>
+
+
               </>
             )}
           </CardContent>

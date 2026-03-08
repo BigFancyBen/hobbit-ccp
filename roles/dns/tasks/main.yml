@@ -11,6 +11,11 @@
     enabled: no
   ignore_errors: yes
 
+- name: Unlock resolv.conf for update
+  command: chattr -i /etc/resolv.conf
+  changed_when: false
+  failed_when: false
+
 - name: Configure /etc/resolv.conf to use local dnsmasq
   copy:
     content: |
@@ -18,6 +23,10 @@
       nameserver 127.0.0.1
     dest: /etc/resolv.conf
     mode: '0644'
+
+- name: Protect resolv.conf from being overwritten
+  command: chattr +i /etc/resolv.conf
+  changed_when: false
 
 - name: Create dnsmasq systemd override directory
   file:

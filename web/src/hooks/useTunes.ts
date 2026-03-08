@@ -184,9 +184,41 @@ export function useSpotifyQueue() {
   }, [refetch]);
 
   useEffect(() => {
-    const es = new EventSource(`${API}/spotify/events`);
-    es.addEventListener('queue-updated', () => refetch());
-    return () => es.close();
+    let es: EventSource | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function connect() {
+      es = new EventSource(`${API}/spotify/events`);
+      es.addEventListener('queue-updated', () => refetch());
+      es.onerror = () => {
+        if (es?.readyState === EventSource.CLOSED) {
+          es = null;
+          reconnectTimer = setTimeout(connect, 3000);
+        }
+      };
+    }
+
+    function disconnect() {
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      if (es) { es.close(); es = null; }
+    }
+
+    function onVisibility() {
+      if (document.hidden) {
+        disconnect();
+      } else {
+        disconnect();
+        connect();
+      }
+    }
+
+    if (!document.hidden) connect();
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      disconnect();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [refetch]);
 
   return { data, loading, refetch };

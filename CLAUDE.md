@@ -10,14 +10,14 @@ Hobbit Mini PC Setup — transforms a Peladn mini PC into a hybrid LAN gaming de
 
 ```
 Phone/Browser → Nginx (Docker, port 80/443) → React SPA (static files)
-               HTTP 301 → HTTPS               → /api/control/* → Bridge (host, port 3001)
+               HTTP (guests) / HTTPS (CA)    → /api/control/* → Bridge (host, port 3001)
                                                → /zigbee/*      → Zigbee2MQTT (Docker, 8080)
                                                → /sb/*          → SilverBullet (Docker, 3000)
 
 Also running: Mosquitto MQTT (Docker, 127.0.0.1:1883), dnsmasq (host), Tailscale (host)
 ```
 
-LAN HTTP requests are redirected to HTTPS (self-signed cert). Tailscale uses a valid Let's Encrypt cert.
+LAN serves on both HTTP (port 80, no cert warnings for guests) and HTTPS (port 443, local CA-signed cert). Tailscale uses a valid Let's Encrypt cert. DNS (`resolv.conf`) is protected with `chattr +i` so dnsmasq stays authoritative; Tailscale DNS override is disabled (`--accept-dns=false`).
 
 The bridge runs on the host (not in Docker) because it needs direct access to `/proc`, X11, HDMI control, and other system-level operations.
 
@@ -71,9 +71,9 @@ There are no tests or linting configured.
 
 **Module-level caching** (`web/src/lib/cache.ts`): Simple Map-based cache outside React lifecycle. Initialize `useState` from cache to prevent skeleton flash on remount. Update cache on successful fetch.
 
-**Data fetching**: Custom hooks (`useSystemStats`, `useLights`) poll the bridge API at intervals. Only `useLights` gates polling on tab visibility (`document.visibilitychange`). The bridge uses a "lazy monitoring" pattern — expensive background work (stats collection, Sunshine reachability checks, MQTT connections) only runs when recently requested and auto-stops after 30s idle. Bridge POST endpoints that need MQTT use `ensureMqttConnected()` to wait up to 5s for a sleeping connection to establish, so the first command after idle works transparently.
+**Data fetching**: Custom hooks (`useSystemStats`, `useLights`, `useControllers`) poll the bridge API at intervals. All polling hooks gate on tab visibility (`document.visibilitychange`) — polling stops when the tab is hidden and resumes on return. The SSE connection (`useTunes`) also disconnects on hidden and reconnects with retry on visible. The bridge uses a "lazy monitoring" pattern — expensive background work (stats collection, Sunshine reachability checks, MQTT connections) only runs when recently requested and auto-stops after 30s idle. Bridge POST endpoints that need MQTT use `ensureMqttConnected()` to wait up to 5s for a sleeping connection to establish, so the first command after idle works transparently.
 
-**Optimistic updates with cooldown**: Hooks that mutate server state (e.g., `useLights`) use optimistic updates paired with an `ignoreUntil` ref that suppresses poll overwrites for 3 seconds after user actions. This prevents stale server state from snapping the UI back before MQTT/Zigbee confirms the change. On fetch error (non-`ok` response or network failure), the optimistic state is reverted to `prevData` and `ignoreUntil` is cleared so the next poll can resync.
+**Optimistic updates with cooldown**: Hooks that mutate server state (e.g., `useLights`) use optimistic updates paired with an `ignoreUntil` ref that suppresses poll overwrites for 3 seconds after user actions. This prevents stale server state from snapping the UI back before MQTT/Zigbee confirms the change. On fetch error (non-`ok` response or network failure), the optimistic state is reverted to `prevData`, `ignoreUntil` is cleared so the next poll can resync, and a toast ("Zigbee unavailable — try again") is shown via `@hobbit/ui/8bit/toast`.
 
 **Reusable components**: `LightGroupCard` (`web/src/components/LightGroupCard.tsx`) — a card with a toggle switch, dimmer slider, optional palette button, and optional children for individual device controls. Used for Zigbee light groups. The slider uses local state during drag (`onValueChange`) and commits on release (`onValueCommit`). Brightness uses a quadratic curve (`percent² × 254`) so the slider spends more range on dim values where perceived brightness changes the most. Optional `onColorClick` prop renders a pixel-art palette icon for color control. Optional `reconnecting` prop shows a pulsing "Connecting..." label next to the title.
 

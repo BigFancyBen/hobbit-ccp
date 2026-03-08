@@ -33,6 +33,10 @@
   changed_when: false
   failed_when: false
 
+- name: Disable Tailscale DNS override (dnsmasq handles DNS)
+  command: tailscale set --accept-dns=false
+  changed_when: false
+
 - name: Allow DNS from Tailscale interface
   ufw:
     rule: allow

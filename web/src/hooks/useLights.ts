@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { toast } from '@hobbit/ui/8bit/toast';
 import { getCache, setCache } from '@/lib/cache';
 
 const CACHE_KEY = 'lights';
@@ -78,7 +79,7 @@ function updateDevice(prev: LightsData, id: string, fn: (d: LightDevice) => Ligh
 export function useLights(refreshInterval = 5000) {
   const cached = getCache<LightsData>(CACHE_KEY);
   const [data, setData] = useState<LightsData | null>(
-    cached ? { ...cached, connected: true } : null
+    cached ?? null
   );
   const [loading, setLoading] = useState(!cached);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -94,7 +95,7 @@ export function useLights(refreshInterval = 5000) {
       if (Date.now() < ignoreUntil.current) return;
       setData(result);
       setCache(CACHE_KEY, result);
-      if (result.connected) setLoading(false);
+      setLoading(false);
     } catch (err) {
       console.error('Failed to fetch lights:', err);
     }
@@ -111,6 +112,7 @@ export function useLights(refreshInterval = 5000) {
           intervalRef.current = null;
         }
       } else {
+        ignoreUntil.current = 0;
         fetchLights();
         if (!intervalRef.current) {
           intervalRef.current = setInterval(fetchLights, refreshInterval);
@@ -148,9 +150,9 @@ export function useLights(refreshInterval = 5000) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: newState }),
       });
-      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); }
+      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again'); }
     } catch {
-      ignoreUntil.current = 0; setData(prevData);
+      ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again');
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
@@ -180,9 +182,9 @@ export function useLights(refreshInterval = 5000) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: newState }),
       });
-      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); }
+      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again'); }
     } catch {
-      ignoreUntil.current = 0; setData(prevData);
+      ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again');
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
@@ -206,9 +208,9 @@ export function useLights(refreshInterval = 5000) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brightness: zigbee }),
       });
-      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); }
+      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again'); }
     } catch {
-      ignoreUntil.current = 0; setData(prevData);
+      ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again');
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
@@ -230,9 +232,9 @@ export function useLights(refreshInterval = 5000) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ color: { hex } }),
       });
-      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); }
+      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again'); }
     } catch {
-      ignoreUntil.current = 0; setData(prevData);
+      ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again');
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
@@ -254,9 +256,9 @@ export function useLights(refreshInterval = 5000) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ color_temp: mireds }),
       });
-      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); }
+      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again'); }
     } catch {
-      ignoreUntil.current = 0; setData(prevData);
+      ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again');
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
@@ -275,9 +277,9 @@ export function useLights(refreshInterval = 5000) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ color: { hex } }),
       });
-      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); }
+      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again'); }
     } catch {
-      ignoreUntil.current = 0; setData(prevData);
+      ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again');
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
@@ -296,9 +298,9 @@ export function useLights(refreshInterval = 5000) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ color_temp: mireds }),
       });
-      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); }
+      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again'); }
     } catch {
-      ignoreUntil.current = 0; setData(prevData);
+      ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again');
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
@@ -323,9 +325,9 @@ export function useLights(refreshInterval = 5000) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ duration: minutes }),
       });
-      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); }
+      if (!res.ok) { ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again'); }
     } catch {
-      ignoreUntil.current = 0; setData(prevData);
+      ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again');
     } finally {
       if (--inflight.current === 0) setActing(false);
     }
