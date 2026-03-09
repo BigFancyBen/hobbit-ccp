@@ -286,7 +286,7 @@ function NowPlaying() {
 export function TunesPage() {
   const { queueTrack, queueLink, queueing } = useQueue();
   const { query, setQuery, results, setResults, searching } = useSearch((url) => queueLink(url));
-  const { data: queueData, loading: queueLoading } = useSpotifyQueue();
+  const { data: queueData, loading: queueLoading, noSession } = useSpotifyQueue();
   const [searchPage, setSearchPage] = useState(1);
   const [queuePage, setQueuePage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(6);
@@ -351,6 +351,14 @@ export function TunesPage() {
     clearTimeout(blurTimeout.current);
     if (results.length > 0) setDropdownOpen(true);
   };
+
+  if (noSession) {
+    return (
+      <div className="flex-1 min-h-0">
+        <p className="text-xs text-muted-foreground retro">No active Spotify session</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">

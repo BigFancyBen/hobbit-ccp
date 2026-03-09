@@ -64,7 +64,15 @@ export function LightControls() {
     setLightColorTemp,
     setTimer,
     cancelTimer,
+    refetch,
   } = useLights();
+
+  const [waking, setWaking] = useState(false);
+
+  // Clear waking state when connection is established
+  useEffect(() => {
+    if (!reconnecting) setWaking(false);
+  }, [reconnecting]);
 
   const [colorTarget, setColorTarget] = useState<ColorTarget | null>(null);
   const [timerTarget, setTimerTarget] = useState<{ id: string; name: string } | null>(null);
@@ -101,7 +109,17 @@ export function LightControls() {
   const timerDevice = timerTarget ? allDevices.find(d => d.id === timerTarget.id) : null;
 
   return (
-    <div className="overflow-y-auto space-y-3">
+    <div className="overflow-y-auto space-y-3 relative">
+      {reconnecting && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 cursor-pointer"
+          onClick={() => { setWaking(true); refetch(); }}
+        >
+          <span className={`text-sm retro text-muted-foreground ${waking ? 'animate-pulse' : ''}`}>
+            {waking ? 'Connecting...' : 'Tap to connect'}
+          </span>
+        </div>
+      )}
       {groups.map(group => {
         const hasColorControls = group.capabilities.color || group.capabilities.color_temp;
         const groupOn = group.state === 'ON';
@@ -112,7 +130,6 @@ export function LightControls() {
             name={groupLabel(group.name)}
             on={groupOn}
             brightnessPercent={group.brightnessPercent}
-            reconnecting={reconnecting}
             acting={acting}
             onToggle={() => toggleGroup(group.name)}
             onBrightness={(pct) => setGroupBrightness(group.name, pct)}

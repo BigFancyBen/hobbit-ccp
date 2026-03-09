@@ -139,14 +139,21 @@ export function useSpotifyQueue() {
   const [data, setData] = useState<QueueData | null>(() => getCache('spotify-queue'));
   const cached = data !== null;
   const [loading, setLoading] = useState(!cached);
+  const [noSession, setNoSession] = useState(false);
 
   const refetch = useCallback(async () => {
     try {
       const res = await fetch(`${API}/spotify/queue`);
-      if (!res.ok) throw new Error('Failed');
+      if (!res.ok) {
+        setNoSession(true);
+        setData({ currentlyPlaying: null, queue: [] });
+        return;
+      }
       const json = await res.json();
+      const empty = !json.currentlyPlaying && (!json.queue || json.queue.length === 0);
+      setNoSession(empty);
       setData(json);
-      setCache('spotify-queue', json);
+      if (!empty) setCache('spotify-queue', json);
     } catch {
       // keep previous data — don't wipe on transient errors
     } finally {
@@ -221,7 +228,7 @@ export function useSpotifyQueue() {
     };
   }, [refetch]);
 
-  return { data, loading, refetch };
+  return { data, loading, noSession, refetch };
 }
 
 interface HistoryTrack {

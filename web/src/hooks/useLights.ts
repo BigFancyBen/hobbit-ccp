@@ -223,14 +223,15 @@ export function useLights(refreshInterval = 5000) {
       ...g,
       color_hex: hex,
       color_temp: null,
-      devices: g.devices.map(d => ({ ...d, color_hex: hex, color_temp: null })),
+      brightness: 254,
+      devices: g.devices.map(d => ({ ...d, color_hex: hex, color_temp: null, brightness: 254 })),
     })) : prev);
     inflight.current++; setActing(true);
     try {
       const res = await fetch(`${API}/lights/group/${encodeURIComponent(groupName)}/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ color: { hex } }),
+        body: JSON.stringify({ color: { hex }, brightness: 254 }),
       });
       if (!res.ok) { ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again'); }
     } catch {
@@ -247,14 +248,15 @@ export function useLights(refreshInterval = 5000) {
       ...g,
       color_hex: null,
       color_temp: mireds,
-      devices: g.devices.map(d => ({ ...d, color_hex: null, color_temp: mireds })),
+      brightness: 3,
+      devices: g.devices.map(d => ({ ...d, color_hex: null, color_temp: mireds, brightness: 3 })),
     })) : prev);
     inflight.current++; setActing(true);
     try {
       const res = await fetch(`${API}/lights/group/${encodeURIComponent(groupName)}/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ color_temp: mireds }),
+        body: JSON.stringify({ color_temp: mireds, brightness: 3 }),
       });
       if (!res.ok) { ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again'); }
     } catch {
@@ -268,14 +270,14 @@ export function useLights(refreshInterval = 5000) {
     const prevData = data;
     ignoreUntil.current = Date.now() + 3000;
     setData(prev => prev ? updateDevice(prev, id, d => ({
-      ...d, color_hex: hex, color_temp: null,
+      ...d, color_hex: hex, color_temp: null, brightness: 254,
     })) : prev);
     inflight.current++; setActing(true);
     try {
       const res = await fetch(`${API}/lights/${encodeURIComponent(id)}/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ color: { hex } }),
+        body: JSON.stringify({ color: { hex }, brightness: 254 }),
       });
       if (!res.ok) { ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again'); }
     } catch {
@@ -289,14 +291,14 @@ export function useLights(refreshInterval = 5000) {
     const prevData = data;
     ignoreUntil.current = Date.now() + 3000;
     setData(prev => prev ? updateDevice(prev, id, d => ({
-      ...d, color_hex: null, color_temp: mireds,
+      ...d, color_hex: null, color_temp: mireds, brightness: 3,
     })) : prev);
     inflight.current++; setActing(true);
     try {
       const res = await fetch(`${API}/lights/${encodeURIComponent(id)}/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ color_temp: mireds }),
+        body: JSON.stringify({ color_temp: mireds, brightness: 3 }),
       });
       if (!res.ok) { ignoreUntil.current = 0; setData(prevData); toast('Zigbee unavailable — try again'); }
     } catch {
@@ -368,5 +370,6 @@ export function useLights(refreshInterval = 5000) {
     setLightColorTemp,
     setTimer,
     cancelTimer,
+    refetch: fetchLights,
   };
 }

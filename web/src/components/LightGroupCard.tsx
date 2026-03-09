@@ -7,7 +7,6 @@ interface LightGroupCardProps {
   name: string;
   on: boolean;
   brightnessPercent: number;
-  reconnecting?: boolean;
   acting?: boolean;
   onToggle: () => void;
   onBrightness: (percent: number) => void;
@@ -19,7 +18,6 @@ export function LightGroupCard({
   name,
   on,
   brightnessPercent,
-  reconnecting,
   acting,
   onToggle,
   onBrightness,
@@ -42,14 +40,7 @@ export function LightGroupCard({
     <div>
       <div className={`bg-muted/50 rounded-md px-3 py-3 ${acting ? 'animate-shimmer' : ''}`}>
         <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold retro">{name}</span>
-            {reconnecting && (
-              <span className="text-[10px] text-muted-foreground animate-pulse mt-1">
-                Connecting...
-              </span>
-            )}
-          </div>
+          <span className="text-sm font-semibold retro">{name}</span>
           <div className="flex items-center gap-2">
             {onColorClick && (
               <button
