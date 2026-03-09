@@ -129,3 +129,5 @@ Components used:
 - `xrandr` - Sets display resolution to 1080p
 - `hdmi-control.sh` - Controls HDMI output power
 - DPMS via `xset` when X is running
+
+Audio pipeline: Moonlight (SDL2) → PulseAudio → ALSA → Realtek ALC269VC (3.5mm jack). The bridge passes `PULSE_SERVER=unix:/run/user/1000/pulse/native` so Moonlight can find PulseAudio when launched headless via `xinit`. The `hobbit` user must be in the `audio` group for ALSA device access (`alsa-utils` provides hardware detection).

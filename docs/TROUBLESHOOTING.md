@@ -140,6 +140,34 @@ The openbox window manager handles fullscreen. If stream is cropped:
 2. Check openbox is starting before moonlight
 3. Verify stream resolution matches display (--1080 flag)
 
+### No audio during game streaming
+
+Audio flows through: Moonlight (SDL2) → PulseAudio → ALSA → 3.5mm jack.
+
+1. Check ALSA detects the sound card:
+   ```bash
+   aplay -l
+   ```
+   Should show `card 0: PCH [HDA Intel PCH], device 0: ALC269VC Analog`.
+
+2. Check PulseAudio has a real sink (not just `auto_null`):
+   ```bash
+   pactl list sinks short
+   ```
+
+3. Check `hobbit` is in the `audio` group:
+   ```bash
+   id hobbit | grep audio
+   ```
+   If not: `sudo usermod -aG audio hobbit` (requires re-login).
+
+4. Check `alsa-utils` is installed:
+   ```bash
+   dpkg -l alsa-utils
+   ```
+
+5. Ensure speakers/headphones are plugged into the 3.5mm jack (not the line-in port).
+
 ### Monitor stays blank after starting gaming
 
 To manually turn the monitor on:

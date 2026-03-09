@@ -87,7 +87,7 @@ app.post('/launch-moonlight', (req, res) => {
       // Launch X with openbox window manager for proper fullscreen handling
       // Stream at 1080p to match monitor, openbox handles window maximization
       const cmd = `sudo xinit /bin/sh -c 'xhost +local: && xrandr --output HDMI-2 --mode 1920x1080 && openbox --sm-disable --config-file /home/hobbit/openbox-rc.xml &
-sleep 1 && su hobbit -c "DISPLAY=:0 moonlight stream ${GAMING_PC} \\"${appName}\\" --1080 --fps 60 --display-mode fullscreen"' -- :0 vt7`;
+sleep 1 && su hobbit -c "DISPLAY=:0 PULSE_SERVER=unix:/run/user/1000/pulse/native moonlight stream ${GAMING_PC} \\"${appName}\\" --1080 --fps 60 --display-mode fullscreen"' -- :0 vt7`;
 
       const child = spawn('sh', ['-c', cmd], {
         detached: true,

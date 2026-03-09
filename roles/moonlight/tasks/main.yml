@@ -10,7 +10,14 @@
       - ddcutil
       - xvfb
       - xdotool
+      - alsa-utils
     state: present
+
+- name: Add hobbit to audio group
+  user:
+    name: hobbit
+    groups: audio
+    append: yes
 
 - name: Copy minimal openbox config (no keybindings)
   copy:

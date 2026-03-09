@@ -8,6 +8,7 @@ Some operations can't be done from Docker containers:
 - **System control**: Reboot, shutdown, monitor power management
 - **Hardware access**: GPU monitoring via `intel_gpu_top`, direct `/proc` access
 - **X11/Display**: Launching Moonlight with proper display configuration
+- **Audio**: PulseAudio access for game streaming audio output (3.5mm jack)
 - **Accurate metrics**: Network stats from `/proc/net/dev`, GPU from hardware counters
 
 ## Architecture
