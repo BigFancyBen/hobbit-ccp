@@ -49,12 +49,12 @@ There are no tests or linting configured.
 ## Key Directories
 
 - `packages/ui/` — `@hobbit/ui` shared design system (source-level, no build step)
-  - `src/8bit/` — 16 pixel-art 8bitcn components (incl. slider, switch)
-  - `src/base/` — 11 shadcn base components (incl. slider, switch)
+  - `src/8bit/` — pixel-art 8bitcn components (incl. slider, switch, input, pagination)
+  - `src/base/` — shadcn base components (incl. slider, switch, input, pagination)
   - `src/lib/utils.ts` — `cn()` utility (clsx + tailwind-merge)
   - `src/styles/` — `theme.css` (oklch Atari color vars), `retro.css` (Press Start 2P font)
 - `web/src/` — React 18 + TypeScript + Vite + Tailwind v4 frontend
-- `files/bridge.js` — Express backend (single file, ~1560 lines), deployed to mini PC
+- `files/bridge.js` — Express backend (single file), deployed to mini PC
 - `files/silverbullet/` — SilverBullet theme (STYLES.md deployed to space/)
 - `files/` — All config files deployed by Ansible (docker-compose, nginx, systemd, etc.)
 - `roles/` — Ansible roles (base, security, tailscale, dns, moonlight, zigbee, webserver)

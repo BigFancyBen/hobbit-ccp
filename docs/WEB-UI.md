@@ -18,13 +18,13 @@ The Hobbit web UI is a React TypeScript application using the 8bitcn component l
 ```
 packages/ui/                     # @hobbit/ui shared design system (workspace package)
 ├── src/
-│   ├── 8bit/                    # 16 pixel-art 8bitcn components
+│   ├── 8bit/                    # Pixel-art 8bitcn components
 │   │   ├── button.tsx, card.tsx, dialog.tsx, tabs.tsx, badge.tsx,
 │   │   │   alert.tsx, skeleton.tsx, spinner.tsx, progress.tsx,
 │   │   │   health-bar.tsx, mana-bar.tsx, empty.tsx, toast.tsx, tooltip.tsx,
-│   │   │   slider.tsx, switch.tsx
+│   │   │   slider.tsx, switch.tsx, input.tsx, pagination.tsx
 │   │   └── styles/retro.css     # Press Start 2P pixel font
-│   ├── base/                    # 11 shadcn base components
+│   ├── base/                    # Shadcn base components
 │   ├── lib/utils.ts             # cn() utility (clsx + tailwind-merge)
 │   └── styles/
 │       ├── theme.css            # oklch Atari color variables
@@ -87,6 +87,8 @@ Components live in a shared workspace package at `packages/ui/`, imported as `@h
 | Tooltip | Hover tooltips |
 | Slider | Brightness/range input with pixel borders |
 | Switch | Toggle switches |
+| Input | Text input fields |
+| Pagination | Page navigation controls |
 
 ### Using Components
 
@@ -290,6 +292,12 @@ In production, nginx handles the proxying:
 # Bridge API
 location /api/control/ {
     proxy_pass http://host.docker.internal:3001/;
+}
+
+# Camera WebSocket relay (go2rtc)
+location /api/camera/ws {
+    proxy_pass http://go2rtc:1984/api/ws;
+    # WebSocket upgrade headers
 }
 ```
 
