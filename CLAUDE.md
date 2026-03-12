@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Hobbit Mini PC Setup — transforms a Peladn mini PC into a hybrid LAN gaming device and silent smart home server. A React SPA communicates through Nginx to a Node.js bridge service running on the host, which manages system stats, Moonlight game streaming, monitor power, and audio output.
+Hobbit Mini PC Setup — transforms a Peladn mini PC into a hybrid LAN gaming device and silent smart home server. A React SPA communicates through Nginx to a Node.js bridge service running on the host, which manages system stats, Moonlight game streaming, monitor power, audio output, Spotify queue (OAuth + SSE), camera streaming (go2rtc), WiFi scanning, and remote mouse/keyboard input during gaming sessions.
 
 ## Architecture
 
@@ -14,7 +14,7 @@ Phone/Browser → Nginx (Docker, port 80/443) → React SPA (static files)
                                                → /zigbee/*      → Zigbee2MQTT (Docker, 8080)
                                                → /sb/*          → SilverBullet (Docker, 3000)
 
-Also running: Mosquitto MQTT (Docker, 127.0.0.1:1883), dnsmasq (host), Tailscale (host)
+Also running: Mosquitto MQTT (Docker, 127.0.0.1:1883), go2rtc (Docker, 1984 — RTSP-to-WebRTC/MSE relay for camera), dnsmasq (host), Tailscale (host)
 ```
 
 LAN serves on both HTTP (port 80, no cert warnings for guests) and HTTPS (port 443, local CA-signed cert). Tailscale uses a valid Let's Encrypt cert. DNS (`resolv.conf`) is protected with `chattr +i` so dnsmasq stays authoritative; Tailscale DNS override is disabled (`--accept-dns=false`).
@@ -44,7 +44,7 @@ ansible-playbook playbooks/setup.yml -i inventory.ini   # First-time full setup
 ansible-playbook playbooks/deploy.yml -i inventory.ini   # Config updates + restart
 ```
 
-There are no tests or linting configured.
+Linting: `web/eslint.config.js` (TypeScript ESLint + React Hooks). No test framework configured.
 
 ## Key Directories
 
@@ -59,6 +59,7 @@ There are no tests or linting configured.
 - `files/` — All config files deployed by Ansible (docker-compose, nginx, systemd, etc.)
 - `roles/` — Ansible roles (base, security, tailscale, dns, moonlight, zigbee, webserver)
 - `playbooks/` — Ansible playbooks (setup.yml for first-time, deploy.yml for updates)
+- `scripts/` — Setup scripts (e.g., `setup-streaming-user.ps1`)
 - `docs/` — Detailed docs on bridge API, DNS, security, troubleshooting
 
 ## Frontend Conventions
@@ -75,17 +76,19 @@ There are no tests or linting configured.
 
 **Optimistic updates with cooldown**: Hooks that mutate server state (e.g., `useLights`) use optimistic updates paired with an `ignoreUntil` ref that suppresses poll overwrites for 3 seconds after user actions. This prevents stale server state from snapping the UI back before MQTT/Zigbee confirms the change. On fetch error (non-`ok` response or network failure), the optimistic state is reverted to `prevData`, `ignoreUntil` is cleared so the next poll can resync, and a toast ("Zigbee unavailable — try again") is shown via `@hobbit/ui/8bit/toast`.
 
-**Reusable components**: `LightGroupCard` (`web/src/components/LightGroupCard.tsx`) — a card with a toggle switch, dimmer slider, optional palette button, and optional children for individual device controls. Used for Zigbee light groups. The slider uses local state during drag (`onValueChange`) and commits on release (`onValueCommit`). Brightness uses a quadratic curve (`percent² × 254`) so the slider spends more range on dim values where perceived brightness changes the most. Optional `onColorClick` prop renders a pixel-art palette icon for color control. When Zigbee is reconnecting, `LightControls` renders a full-screen "Tap to connect" overlay (calls `refetch()` on tap) instead of per-card labels.
+**Key components**: `LightGroupCard` (toggle + dimmer + optional color palette + children), `ColorPickerModal` (color swatches + warmth presets via portal), `TimerModal` (auto-off presets for smart plugs), `TunesPage` (Spotify queue/search/now-playing), `CameraTab` (go2rtc WebRTC stream + PTZ presets), `WifiPage` (network scan results), `SettingsModal` (system settings).
 
-**Color picker**: `ColorPickerModal` (`web/src/components/ColorPickerModal.tsx`) — portal modal with curated color swatches and warmth presets. The bridge stores `color_hex` (the hex we *sent*) on each device so the modal can highlight the active swatch on reopen — MQTT only echoes CIE xy which can't round-trip to hex. Setting `color_temp` clears `color_hex` and vice versa, both server-side and via optimistic updates. Color selections also force brightness (254 for hex colors, 3 for warmth presets) so the effect is immediately visible. Selected swatches get a yellow outline (`border-yellow-400 ring-2`). Uses `useTransition` + backdrop + pixel border pattern.
+**Brightness curve**: Quadratic (`percent² × 254`) so the slider spends more range on dim values where perceived brightness changes most. Slider uses local state during drag, commits on release.
 
-**Auto-off timer**: `TimerModal` (`web/src/components/TimerModal.tsx`) — portal modal for switched outlets (non-color devices like smart plugs). Tap the device name to open; 6 duration presets (15m–8hr) in a 2-column grid. Selecting a preset turns the device ON and sets a bridge-side `setTimeout` that publishes `{ state: 'OFF' }` via MQTT when it expires. The bridge tracks timers in a `deviceTimers` Map and exposes `timer: { endsAt }` in `GET /lights`. The frontend shows a live countdown (`TimerCountdown` component in `LightControls.tsx`) using a client-side `setInterval(1000)` — no extra polling. Timers auto-cancel when the device turns OFF (manual toggle, group toggle, or timer expiry echo).
+**Color round-trip**: Bridge stores `color_hex` (the hex we *sent*) per device — MQTT only echoes CIE xy which can't round-trip. Setting `color_temp` clears `color_hex` and vice versa. Color selections force brightness (254 for hex, 3 for warmth) so the effect is immediately visible.
+
+**Auto-off timers**: Bridge-side `setTimeout` per device, tracked in `deviceTimers` Map, exposed as `timer: { endsAt }` in `GET /lights`. Frontend shows live countdown via client-side `setInterval(1000)`. Timers auto-cancel on device OFF.
 
 ## Bridge API
 
 All endpoints are under `/api/control/` in production (Nginx proxy strips the prefix). In the bridge code, routes are registered at root (`/health`, `/status`, `/cpu-stats`, etc.).
 
-Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached game list), `/apps/refresh`, `/launch-moonlight?app=X`, `/exit-gaming`, `/cpu-stats`, `/gpu-stats`, `/ram-stats`, `/disk-stats`, `/net-stats`, `/monitor-on`, `/monitor-off`, `/reboot`, `/shutdown`, `/lights` (Zigbee group state + capabilities + per-device `color_hex`/`color_temp` + `timer`), `/lights/group/set` (accepts `state`, `brightness`, `color`, `color_temp`), `/lights/:id/set`, `/lights/:id/timer` (set/cancel auto-off timer `{ duration: <minutes> }`), `/controllers` (Xbox controller dongle + connected controllers).
+Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached game list), `/apps/refresh`, `/launch-moonlight?app=X`, `/exit-gaming`, `/cpu-stats`, `/gpu-stats`, `/ram-stats`, `/disk-stats`, `/net-stats`, `/monitor-on`, `/monitor-off`, `/reboot`, `/shutdown`, `/lights` (Zigbee group state + capabilities + per-device `color_hex`/`color_temp` + `timer`), `/lights/group/:groupName/set` (accepts `state`, `brightness`, `color`, `color_temp`), `/lights/:id/set`, `/lights/:id/timer` (set/cancel auto-off timer `{ duration: <minutes> }`), `/controllers` (Xbox controller dongle + connected controllers), `/wifi` (scan results), `/camera/preset/:token` (PTZ presets), `/input/*` (`move`, `click`, `mousedown`, `mouseup`, `scroll`, `key`, `type` — remote input during gaming), `/spotify/auth` + `/spotify/callback` (OAuth flow), `/spotify/status`, `/spotify/logout`, `/spotify/search`, `/spotify/queue` (GET list / POST add), `/spotify/queue-link`, `/spotify/now-playing`, `/spotify/history`, `/spotify/events` (SSE for real-time queue updates).
 
 ## Deployment Flow
 
@@ -97,6 +100,6 @@ The dev proxy in `web/vite.config.js` points to the real mini PC at `192.168.0.6
 
 - `inventory.ini` — Target host: hobbit at 192.168.0.67
 - `group_vars/all.yml` — Gaming PC IP (192.168.0.69), timezone, paths, LAN subnet, `tailscale_fqdn`
-- `docker-compose.yml` (in `files/`) — Nginx, Mosquitto, Zigbee2MQTT, SilverBullet containers
+- `docker-compose.yml` (in `files/`) — Nginx, Mosquitto, Zigbee2MQTT, SilverBullet, go2rtc containers
 - `nginx.conf` — Jinja2 template: SPA routing, API proxy, DNS rebinding protection, Tailscale HTTPS server block
 - `hobbit-bridge.service` — Systemd unit for the bridge (auto-restart, runs as hobbit user)
