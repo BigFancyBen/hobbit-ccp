@@ -58,6 +58,9 @@
         -sha256 -days 3650
         -out {{ hobbit_dir }}/ssl/hobbit-ca.crt
         -subj "/CN=Hobbit Home CA"
+        -addext "basicConstraints=critical,CA:TRUE"
+        -addext "keyUsage=critical,keyCertSign,cRLSign"
+        -addext "subjectKeyIdentifier=hash"
       args:
         creates: "{{ hobbit_dir }}/ssl/hobbit-ca.crt"
       tags: [docker]
@@ -83,7 +86,9 @@
         content: |
           authorityKeyIdentifier=keyid,issuer
           basicConstraints=CA:FALSE
-          keyUsage=digitalSignature,keyEncipherment
+          keyUsage=critical,digitalSignature,keyEncipherment
+          extendedKeyUsage=serverAuth
+          subjectKeyIdentifier=hash
           subjectAltName=DNS:hobbit.house,DNS:hobbit,DNS:hobbit.local,IP:192.168.0.67
         dest: "{{ hobbit_dir }}/ssl/hobbit-ext.cnf"
       tags: [docker]
