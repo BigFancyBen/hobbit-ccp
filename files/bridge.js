@@ -223,6 +223,14 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Serve CA certificate for device import
+app.get('/ca.crt', (req, res) => {
+  const certPath = '/home/hobbit/hobbit/ssl/hobbit-ca.crt';
+  res.setHeader('Content-Type', 'application/x-x509-ca-cert');
+  res.setHeader('Content-Disposition', 'attachment; filename="hobbit-ca.crt"');
+  res.sendFile(certPath);
+});
+
 app.get('/wifi', (req, res) => {
   const ssid = process.env.WIFI_SSID;
   const password = process.env.WIFI_PASSWORD;

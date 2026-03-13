@@ -121,6 +121,16 @@ export function SystemTab({ onReboot, loading }: SystemTabProps) {
       <ControllersSection />
 
       <div className="flex items-center justify-between">
+        <span className="text-xs sm:text-sm retro font-semibold">CA Certificate</span>
+        <Button
+          asChild
+          className="h-7 text-[10px] px-2 touch-manipulation"
+        >
+          <a href="/ca.crt" target="_blank" rel="noopener noreferrer">Download</a>
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-between">
         <span className="text-xs sm:text-sm retro font-semibold">System Reboot</span>
         <Button
           variant="destructive"

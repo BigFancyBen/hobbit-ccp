@@ -7,6 +7,7 @@ import { LightControls } from '@/components/LightControls';
 import { GamesPage } from '@/components/GameLauncher';
 import { TunesPage } from '@/components/TunesPage';
 import { WifiPage } from '@/components/WifiPage';
+import { useConnectionStatus } from '@/hooks/useConnectionStatus';
 
 const API = '/api/control';
 
@@ -22,6 +23,7 @@ function App() {
   const [location] = useLocation();
   const [loading, setLoading] = useState<string | null>(null);
   const prevRouteIndexRef = useRef(routeIndex(location));
+  const connected = useConnectionStatus();
 
   // Settings modal state (controlled for deep linking)
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -87,6 +89,15 @@ function App() {
 
   return (
     <div className="h-[100dvh] flex flex-col p-2 sm:p-3 overflow-hidden">
+      {!connected && (
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full bg-destructive text-destructive-foreground text-xs font-bold py-2 px-3 text-center cursor-pointer border-b-4 border-foreground dark:border-ring"
+          style={{ fontFamily: "'Press Start 2P', monospace" }}
+        >
+          Connection lost — tap to refresh
+        </button>
+      )}
       <div className="max-w-lg mx-auto w-full flex flex-col flex-1 min-h-0">
         {/* Header with nav and settings */}
         <header className="flex items-center gap-2 mb-3">
