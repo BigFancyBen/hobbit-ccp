@@ -1,0 +1,30 @@
+---
+- name: Install Kodi and VA-API packages
+  apt:
+    name:
+      - kodi
+      - intel-media-va-driver-non-free
+      - vainfo
+    state: present
+
+- name: Add hobbit to media groups
+  user:
+    name: hobbit
+    groups: video,render,input,audio
+    append: yes
+
+- name: Create Kodi userdata directory
+  file:
+    path: /home/hobbit/.kodi/userdata
+    state: directory
+    owner: hobbit
+    group: hobbit
+    mode: '0755'
+
+- name: Configure Kodi JSON-RPC web server
+  template:
+    src: advancedsettings.xml.j2
+    dest: /home/hobbit/.kodi/userdata/advancedsettings.xml
+    owner: hobbit
+    group: hobbit
+    mode: '0644'

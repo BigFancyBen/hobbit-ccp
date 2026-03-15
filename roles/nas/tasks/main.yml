@@ -1,0 +1,44 @@
+---
+- name: Install automount and Samba packages
+  apt:
+    name:
+      - udisks2
+      - samba
+    state: present
+
+- name: Enable udisks2 service
+  systemd:
+    name: udisks2
+    enabled: yes
+    state: started
+
+- name: Configure Samba
+  template:
+    src: smb.conf.j2
+    dest: /etc/samba/smb.conf
+  register: smb_conf
+
+- name: Enable Samba services
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  loop:
+    - smbd
+    - nmbd
+
+- name: Restart Samba if config changed
+  systemd:
+    name: smbd
+    state: restarted
+  when: smb_conf.changed
+
+- name: Allow Samba through firewall
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    from_ip: "{{ lan_subnet }}"
+  loop:
+    - { port: '445', proto: 'tcp' }
+    - { port: '137:138', proto: 'udp' }

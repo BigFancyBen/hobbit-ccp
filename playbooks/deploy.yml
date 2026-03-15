@@ -179,6 +179,34 @@
         mode: '0755'
       tags: [infra]
 
+    # Kodi media center setup
+    - name: Install Kodi and VA-API packages
+      apt:
+        name:
+          - kodi
+          - intel-media-va-driver-non-free
+          - vainfo
+        state: present
+      tags: [kodi]
+
+    - name: Create Kodi userdata directory
+      file:
+        path: /home/hobbit/.kodi/userdata
+        state: directory
+        owner: hobbit
+        group: hobbit
+        mode: '0755'
+      tags: [kodi]
+
+    - name: Configure Kodi JSON-RPC web server
+      template:
+        src: ../roles/kodi/templates/advancedsettings.xml.j2
+        dest: /home/hobbit/.kodi/userdata/advancedsettings.xml
+        owner: hobbit
+        group: hobbit
+        mode: '0644'
+      tags: [kodi]
+
     - name: Copy bridge.js
       copy:
         src: ../files/bridge.js

@@ -57,11 +57,11 @@ exec('sudo /usr/local/bin/hdmi-control.sh off', (err) => {
 // Session generation counter — prevents stale cleanups from racing with new launches
 let sessionGen = 0;
 
-// Cleanup when gaming session ends (only if no new session has started)
-function cleanupGamingSession(gen) {
+// Cleanup when session ends (only if no new session has started)
+function cleanupSession(gen) {
   if (gen !== sessionGen) return;
   sessionGen++;  // invalidate this gen so a second call (close + timeout) is a no-op
-  console.log('Gaming session ended, cleaning up...');
+  console.log('Session ended, cleaning up...');
   exec('sudo /usr/local/bin/hdmi-control.sh off');
 }
 
@@ -73,8 +73,8 @@ app.post('/launch-moonlight', (req, res) => {
     return res.status(400).json({ error: 'Unknown app' });
   }
 
-  // Check if already running (look for X server which indicates gaming mode)
-  exec('pgrep -x Xorg', (err) => {
+  // Check if already running (X server = gaming, kodi = media center)
+  exec('pgrep -x Xorg || pgrep -x kodi.bin', (err) => {
     if (!err) {
       return res.status(400).json({ error: 'Already running. Exit first.' });
     }
@@ -97,7 +97,7 @@ sleep 1 && su hobbit -c "DISPLAY=:0 PULSE_SERVER=unix:/run/user/1000/pulse/nativ
 
       // Cleanup when the gaming session exits on its own
       child.on('close', () => {
-        cleanupGamingSession(gen);
+        cleanupSession(gen);
       });
 
       res.json({ status: 'launching', app: appName });
@@ -126,11 +126,70 @@ app.post('/exit-gaming', (req, res) => {
     // Small delay to let DPMS take effect before killing X
     setTimeout(() => {
       exec('sudo pkill -9 Xorg; sudo pkill -9 xinit; sudo pkill -9 moonlight', () => {
-        setTimeout(() => cleanupGamingSession(gen), 500);
+        setTimeout(() => cleanupSession(gen), 500);
       });
     }, 200);
   });
   res.json({ status: 'stopped' });
+});
+
+// Launch Kodi media center (GBM backend, no X server needed)
+app.post('/launch-kodi', (req, res) => {
+  // Check if already running
+  exec('pgrep -x Xorg || pgrep -x kodi.bin', (err) => {
+    if (!err) {
+      return res.status(400).json({ error: 'Already running. Exit first.' });
+    }
+
+    const gen = ++sessionGen;
+
+    exec('sudo /usr/local/bin/hdmi-control.sh on', () => {
+      const child = spawn('sudo', ['-u', 'hobbit', 'env', 'HOME=/home/hobbit', 'XDG_RUNTIME_DIR=/run/user/1000', 'KODI_AE_SINK=ALSA', 'kodi-standalone', '--windowing=gbm'], {
+        detached: true,
+        stdio: ['ignore', 'ignore', 'pipe']
+      });
+      child.stderr.on('data', d => console.error('[kodi stderr]', d.toString().trim()));
+      child.on('error', e => console.error('[kodi spawn error]', e.message));
+      child.unref();
+
+      child.on('close', (code) => {
+        if (code) console.log(`[kodi] exited with code ${code}`);
+        cleanupSession(gen);
+      });
+
+      res.json({ status: 'launching' });
+    });
+  });
+});
+
+// Exit Kodi media center
+app.post('/exit-kodi', (req, res) => {
+  const gen = sessionGen;
+  exec('sudo pkill -x kodi.bin', () => {
+    // Wait for kodi to fully exit before turning off HDMI
+    setTimeout(() => {
+      exec('sudo /usr/local/bin/hdmi-control.sh off', (err) => {
+        if (err) console.error('[exit-kodi] hdmi-control.sh off failed:', err.message);
+      });
+      cleanupSession(gen);
+    }, 500);
+  });
+  res.json({ status: 'stopped' });
+});
+
+// Proxy JSON-RPC to Kodi web server
+app.post('/kodi/jsonrpc', async (req, res) => {
+  try {
+    const response = await fetch('http://localhost:8085/jsonrpc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: 'Kodi not responding' });
+  }
 });
 
 // Monitor power control - uses DPMS when X running, hdmi-control.sh otherwise
@@ -208,12 +267,16 @@ setInterval(() => {
 // Status check - uses cached Sunshine reachability
 app.get('/status', (req, res) => {
   touchStatus();
-  // Check for X server (reliable indicator of gaming mode)
-  exec('pgrep -x Xorg', (xorgErr) => {
-    res.json({
-      gaming: !xorgErr,
-      mode: !xorgErr ? 'gaming' : 'idle',
-      sunshineOnline
+  // Three-way mode: kodi (GBM, no X), gaming (X server), idle
+  exec('pgrep -x kodi.bin', (kodiErr) => {
+    if (!kodiErr) {
+      return res.json({ mode: 'kodi', sunshineOnline });
+    }
+    exec('pgrep -x Xorg', (xorgErr) => {
+      res.json({
+        mode: !xorgErr ? 'gaming' : 'idle',
+        sunshineOnline
+      });
     });
   });
 });

@@ -7,6 +7,7 @@
 #   web      Sync source + build on server + reload nginx
 #   bridge   Copy bridge files + npm install + restart bridge service
 #   docker   Sync docker/nginx/mqtt configs + recreate containers
+#   kodi     Install Kodi + VA-API + configure JSON-RPC
 
 set -e
 
@@ -87,9 +88,20 @@ case "$TARGET" in
     echo "=== Docker Deploy Complete ==="
     ;;
 
+  kodi)
+    echo "[1/1] Installing Kodi via Ansible..."
+    wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
+        ANSIBLE_CONFIG=./ansible.cfg \
+        ansible-playbook playbooks/deploy.yml --tags kodi"
+    echo "      Kodi installed and configured"
+    echo ""
+
+    echo "=== Kodi Deploy Complete ==="
+    ;;
+
   *)
     echo "Unknown target: $TARGET"
-    echo "Usage: ./deploy.sh [web|bridge|docker]"
+    echo "Usage: ./deploy.sh [web|bridge|docker|kodi]"
     echo "  (no argument = full deploy)"
     exit 1
     ;;

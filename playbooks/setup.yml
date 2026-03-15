@@ -10,5 +10,7 @@
     - dns         # Local DNS server (dnsmasq)
     - moonlight   # X11, Moonlight, pairing prep
     - xone        # Xbox wireless dongle driver
+    - kodi        # Kodi media center with GBM + VA-API
+    - nas         # USB automount (udisks2) + Samba sharing
     - zigbee      # Mosquitto, Zigbee2MQTT
     - webserver   # Nginx, React app, bridge service

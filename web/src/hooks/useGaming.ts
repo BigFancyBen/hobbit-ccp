@@ -7,7 +7,7 @@ const APPS_CACHE_KEY = 'gaming-apps';
 const API = '/api/control';
 
 interface GamingStatus {
-  mode: string;
+  mode: 'idle' | 'gaming' | 'kodi';
   sunshineOnline: boolean;
 }
 
@@ -23,21 +23,7 @@ export function useGaming() {
   const [error, setError] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(!cachedStatus);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const checkStatus = useCallback(async () => {
-    try {
-      const res = await fetch(`${API}/status`);
-      if (res.ok) {
-        const data: GamingStatus = await res.json();
-        setStatus(data);
-        setCache(STATUS_CACHE_KEY, data);
-        setError(null);
-      }
-    } catch (err) {
-      console.error('Status check failed:', err);
-      setError('Cannot connect to server');
-    }
-  }, []);
+  const wasSunshineOnlineRef = useRef(status.sunshineOnline);
 
   const fetchApps = useCallback(async () => {
     try {
@@ -53,6 +39,25 @@ export function useGaming() {
       setApps([]);
     }
   }, []);
+
+  const checkStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/status`);
+      if (res.ok) {
+        const data: GamingStatus = await res.json();
+        if (data.sunshineOnline && !wasSunshineOnlineRef.current) {
+          fetchApps();
+        }
+        wasSunshineOnlineRef.current = data.sunshineOnline;
+        setStatus(data);
+        setCache(STATUS_CACHE_KEY, data);
+        setError(null);
+      }
+    } catch (err) {
+      console.error('Status check failed:', err);
+      setError('Cannot connect to server');
+    }
+  }, [fetchApps]);
 
   useEffect(() => {
     const init = async () => {
@@ -121,5 +126,54 @@ export function useGaming() {
     setTimeout(checkStatus, 1000);
   }, [checkStatus]);
 
-  return { status, apps, loading, error, initialLoading, launchApp, exitGaming };
+  const launchKodi = useCallback(async () => {
+    setLoading('kodi');
+    try {
+      const res = await fetch(`${API}/launch-kodi`, { method: 'POST' });
+      if (res.ok) {
+        toast('Media Center launched!');
+      } else {
+        const data = await res.json();
+        const errorMsg = data.error || 'Failed to launch';
+        setError(errorMsg);
+        toast(errorMsg);
+      }
+    } catch (err) {
+      console.error('Failed to launch Kodi:', err);
+      setError('Failed to connect');
+      toast('Failed to connect');
+    }
+    setLoading(null);
+    setTimeout(checkStatus, 2000);
+  }, [checkStatus]);
+
+  const exitKodi = useCallback(async () => {
+    setLoading('exit');
+    try {
+      await fetch(`${API}/exit-kodi`, { method: 'POST' });
+      toast('Media Center stopped');
+    } catch (err) {
+      console.error('Failed to exit Kodi:', err);
+      setError('Failed to exit');
+      toast('Failed to exit');
+    }
+    setLoading(null);
+    setTimeout(checkStatus, 1000);
+  }, [checkStatus]);
+
+  const kodiRpc = useCallback(async (method: string, params?: Record<string, unknown>) => {
+    try {
+      const res = await fetch(`${API}/kodi/jsonrpc`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.error('Kodi RPC failed:', err);
+    }
+    return null;
+  }, []);
+
+  return { status, apps, loading, error, initialLoading, launchApp, exitGaming, launchKodi, exitKodi, kodiRpc };
 }
