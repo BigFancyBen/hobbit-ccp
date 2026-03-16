@@ -1,4 +1,12 @@
 ---
+- name: Create media directory
+  file:
+    path: /media/hobbit
+    state: directory
+    owner: hobbit
+    group: hobbit
+    mode: '0755'
+
 - name: Install automount and Samba packages
   apt:
     name:

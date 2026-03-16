@@ -20,14 +20,14 @@ export function ExitButton({ onExit, loading }: ExitButtonProps) {
     <>
       <Button
         variant="destructive"
-        className="w-full h-16 text-base active:scale-95 transition-transform touch-manipulation"
+        className="h-8 px-3 text-xs active:scale-95 transition-transform touch-manipulation"
         onClick={() => setOpen(true)}
         disabled={loading}
       >
         {loading ? (
           <span className="flex items-center gap-2">
-            <Spinner className="size-4" />
-            Stopping...
+            <Spinner className="size-3" />
+            Stopping
           </span>
         ) : (
           'Exit'

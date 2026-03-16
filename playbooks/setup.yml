@@ -4,13 +4,23 @@
   become: yes
 
   roles:
-    - base        # mDNS, firewall, Docker, Node.js
-    - security    # SSH hardening, unattended-upgrades
-    - tailscale   # WireGuard mesh VPN for remote access
-    - dns         # Local DNS server (dnsmasq)
-    - moonlight   # X11, Moonlight, pairing prep
-    - xone        # Xbox wireless dongle driver
-    - kodi        # Kodi media center with GBM + VA-API
-    - nas         # USB automount (udisks2) + Samba sharing
-    - zigbee      # Mosquitto, Zigbee2MQTT
-    - webserver   # Nginx, React app, bridge service
+    - role: base        # mDNS, firewall, Docker, Node.js
+      tags: base
+    - role: security    # SSH hardening, unattended-upgrades
+      tags: security
+    - role: tailscale   # WireGuard mesh VPN for remote access
+      tags: tailscale
+    - role: dns         # Local DNS server (dnsmasq)
+      tags: dns
+    - role: moonlight   # X11, Moonlight, pairing prep
+      tags: moonlight
+    - role: xone        # Xbox wireless dongle driver
+      tags: xone
+    - role: kodi        # Kodi media center with GBM + VA-API
+      tags: kodi
+    - role: nas         # USB automount (udisks2) + Samba sharing
+      tags: nas
+    - role: zigbee      # Mosquitto, Zigbee2MQTT
+      tags: zigbee
+    - role: webserver   # Nginx, React app, bridge service
+      tags: webserver

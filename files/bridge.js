@@ -82,7 +82,9 @@ app.post('/launch-moonlight', (req, res) => {
     // Increment session generation so any pending cleanup from a previous session becomes a no-op
     const gen = ++sessionGen;
 
-    // Turn on HDMI, then launch X
+    // Pin ALSA at max as passthrough, unmute PulseAudio, then turn on HDMI and launch X
+    exec('amixer set Master unmute 100% && amixer set Headphone unmute 100%');
+    exec('sudo -u hobbit env XDG_RUNTIME_DIR=/run/user/1000 pactl set-sink-mute @DEFAULT_SINK@ 0');
     exec('sudo /usr/local/bin/hdmi-control.sh on', () => {
       // Launch X with openbox window manager for proper fullscreen handling
       // Stream at 4K 60fps to match monitor, openbox handles window maximization
@@ -143,8 +145,10 @@ app.post('/launch-kodi', (req, res) => {
 
     const gen = ++sessionGen;
 
+    exec('amixer set Master unmute 100% && amixer set Headphone unmute 100%');
+    exec('sudo -u hobbit env XDG_RUNTIME_DIR=/run/user/1000 pactl set-sink-mute @DEFAULT_SINK@ 0');
     exec('sudo /usr/local/bin/hdmi-control.sh on', () => {
-      const child = spawn('sudo', ['-u', 'hobbit', 'env', 'HOME=/home/hobbit', 'XDG_RUNTIME_DIR=/run/user/1000', 'KODI_AE_SINK=ALSA', 'kodi-standalone', '--windowing=gbm'], {
+      const child = spawn('sudo', ['-u', 'hobbit', 'env', 'HOME=/home/hobbit', 'XDG_RUNTIME_DIR=/run/user/1000', 'PULSE_SERVER=unix:/run/user/1000/pulse/native', 'kodi-standalone', '--windowing=gbm'], {
         detached: true,
         stdio: ['ignore', 'ignore', 'pipe']
       });
@@ -292,6 +296,67 @@ app.get('/ca.crt', (req, res) => {
   res.setHeader('Content-Type', 'application/x-x509-ca-cert');
   res.setHeader('Content-Disposition', 'attachment; filename="hobbit-ca.crt"');
   res.sendFile(certPath);
+});
+
+// System volume control via PulseAudio (single volume authority)
+// ALSA Master/Headphone are pinned at 100% as passthrough so PA has full range.
+const PA_SINK = '@DEFAULT_SINK@';
+
+function readPaVolume(callback) {
+  exec(`sudo -u hobbit env XDG_RUNTIME_DIR=/run/user/1000 pactl get-sink-volume ${PA_SINK}`, (err, volOut) => {
+    if (err) return callback(err);
+    exec(`sudo -u hobbit env XDG_RUNTIME_DIR=/run/user/1000 pactl get-sink-mute ${PA_SINK}`, (err2, muteOut) => {
+      if (err2) return callback(err2);
+      const volMatch = volOut.match(/(\d+)%/);
+      const muteMatch = muteOut.match(/Mute:\s*(yes|no)/);
+      if (!volMatch || !muteMatch) return callback(new Error('Could not parse pactl output'));
+      callback(null, { volume: parseInt(volMatch[1]), muted: muteMatch[1] === 'yes' });
+    });
+  });
+}
+
+function runPactl(args) {
+  return new Promise((resolve, reject) => {
+    exec(`sudo -u hobbit env XDG_RUNTIME_DIR=/run/user/1000 pactl ${args}`, (err) => {
+      if (err) reject(err); else resolve();
+    });
+  });
+}
+
+app.get('/volume', (req, res) => {
+  readPaVolume((err, state) => {
+    if (err) return res.status(500).json({ error: 'Failed to read volume' });
+    res.json(state);
+  });
+});
+
+app.post('/volume', (req, res) => {
+  const { volume, muted, delta } = req.body;
+  const commands = [];
+
+  if (typeof volume === 'number') {
+    const v = Math.max(0, Math.min(100, Math.round(volume)));
+    commands.push(`set-sink-volume ${PA_SINK} ${v}%`);
+  }
+  if (typeof delta === 'number') {
+    const sign = delta >= 0 ? '+' : '-';
+    const abs = Math.abs(Math.round(delta));
+    commands.push(`set-sink-volume ${PA_SINK} ${sign}${abs}%`);
+  }
+  if (muted === true) commands.push(`set-sink-mute ${PA_SINK} 1`);
+  else if (muted === false) commands.push(`set-sink-mute ${PA_SINK} 0`);
+  else if (muted === 'toggle') commands.push(`set-sink-mute ${PA_SINK} toggle`);
+
+  if (commands.length === 0) return res.status(400).json({ error: 'No valid params' });
+
+  Promise.all(commands.map(cmd => runPactl(cmd)))
+    .then(() => {
+      readPaVolume((err, state) => {
+        if (err) return res.status(500).json({ error: 'Failed to read volume' });
+        res.json(state);
+      });
+    })
+    .catch(() => res.status(500).json({ error: 'Failed to set volume' }));
 });
 
 app.get('/wifi', (req, res) => {

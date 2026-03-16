@@ -11,13 +11,107 @@
       - xvfb
       - xdotool
       - alsa-utils
+      - pulseaudio
     state: present
 
-- name: Add hobbit to audio group
+- name: Add hobbit to audio and pulse-access groups
   user:
     name: hobbit
-    groups: audio
+    groups: audio,pulse-access
     append: yes
+
+- name: Enable lingering for hobbit (keep user session alive)
+  command: loginctl enable-linger hobbit
+  changed_when: false
+
+- name: Ensure PulseAudio runs as hobbit user service
+  become: yes
+  become_user: hobbit
+  shell: |
+    export XDG_RUNTIME_DIR=/run/user/1000
+    systemctl --user enable pulseaudio.socket pulseaudio.service
+  changed_when: false
+
+- name: Pin ALSA mixers at 100% (passthrough for PulseAudio)
+  shell: amixer set Master unmute 100% && amixer set Headphone unmute 100%
+  changed_when: false
+
+- name: Create ALSA passthrough systemd service
+  copy:
+    content: |
+      [Unit]
+      Description=Pin ALSA mixers at 100%% for PulseAudio passthrough
+      After=sound.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/amixer set Master unmute 100%%
+      ExecStartPost=/usr/bin/amixer set Headphone unmute 100%%
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/alsa-passthrough.service
+  notify: Reload systemd
+
+- name: Enable ALSA passthrough service
+  systemd:
+    name: alsa-passthrough
+    enabled: yes
+    state: started
+
+- name: Set ALSA model hint for ALC269VC analog output
+  copy:
+    content: |
+      options snd-hda-intel model=generic
+    dest: /etc/modprobe.d/snd-hda-intel.conf
+    mode: '0644'
+  register: alsa_model_hint
+
+- name: Create PulseAudio config directory
+  file:
+    path: /home/hobbit/.config/pulse
+    state: directory
+    owner: hobbit
+    group: hobbit
+    mode: '0755'
+
+- name: Configure PulseAudio for stereo output
+  copy:
+    content: |
+      default-sample-channels = 2
+      default-channel-map = front-left,front-right
+    dest: /home/hobbit/.config/pulse/daemon.conf
+    owner: hobbit
+    group: hobbit
+    mode: '0644'
+  register: pulse_daemon_conf
+
+- name: Configure PulseAudio to skip session module (prevent SSH restarts)
+  copy:
+    content: |
+      .include /etc/pulse/default.pa
+      # Disable module-systemd-login so SSH sessions don't restart PulseAudio
+      unload-module module-systemd-login
+    dest: /home/hobbit/.config/pulse/default.pa
+    owner: hobbit
+    group: hobbit
+    mode: '0644'
+  register: pulse_default_pa
+
+- name: Restart PulseAudio if config changed
+  become: yes
+  become_user: hobbit
+  shell: |
+    export XDG_RUNTIME_DIR=/run/user/1000
+    systemctl --user restart pulseaudio.service
+  when: pulse_daemon_conf.changed or pulse_default_pa.changed
+  changed_when: false
+
+- name: Remove bad .asoundrc if present
+  file:
+    path: /home/hobbit/.asoundrc
+    state: absent
 
 - name: Copy minimal openbox config (no keybindings)
   copy:

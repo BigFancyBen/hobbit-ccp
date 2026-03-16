@@ -17,4 +17,7 @@ tailscale_fqdn: "hobbit.tailf803eb.ts.net"
 # Wi-Fi — wifi_password is in vault.yml (encrypted)
 wifi_ssid: "56k Dial-up"
 
+# NAS — Samba interface binding
+lan_interface: "wlp2s0"
+
 # Lorex camera — camera_password is in vault.yml (encrypted)

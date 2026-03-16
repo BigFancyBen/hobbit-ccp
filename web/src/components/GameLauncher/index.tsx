@@ -23,15 +23,13 @@ export function GamesPage() {
           <span className="text-xs sm:text-sm uppercase tracking-wide text-muted-foreground retro">
             Media Center
           </span>
-          <StatusBadge mode="kodi" loading={initialLoading} />
+          <div className="flex items-center gap-2">
+            <StatusBadge mode="kodi" loading={initialLoading} />
+            <ExitButton onExit={exitKodi} loading={loading === 'exit'} />
+          </div>
         </div>
 
         <KodiRemote kodiRpc={kodiRpc} />
-
-        <ExitButton
-          onExit={exitKodi}
-          loading={loading === 'exit'}
-        />
       </div>
     );
   }
@@ -49,15 +47,13 @@ export function GamesPage() {
           <span className="text-xs sm:text-sm uppercase tracking-wide text-muted-foreground retro">
             Radiance
           </span>
-          <StatusBadge mode="gaming" offline={!status.sunshineOnline} loading={initialLoading} />
+          <div className="flex items-center gap-2">
+            <StatusBadge mode="gaming" offline={!status.sunshineOnline} loading={initialLoading} />
+            <ExitButton onExit={exitGaming} loading={loading === 'exit'} />
+          </div>
         </div>
 
         <VirtualInput />
-
-        <ExitButton
-          onExit={exitGaming}
-          loading={loading === 'exit'}
-        />
       </div>
     );
   }

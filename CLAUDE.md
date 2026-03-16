@@ -36,6 +36,9 @@ npm run build        # Production build → web/dist/
 ./deploy.sh web      # Build web UI + copy to remote + reload nginx (~25-35s)
 ./deploy.sh bridge   # Copy bridge files + npm install + restart bridge (~20-30s)
 ./deploy.sh docker   # Sync docker/nginx/mqtt configs + recreate containers (~15-25s)
+./deploy.sh kodi     # Deploy Kodi config (sources, guisettings) + restart
+./deploy.sh nas      # Deploy NAS/Samba config + restart smbd
+./deploy.sh audio    # Deploy PulseAudio + ALSA config + restart PulseAudio
 ```
 
 ### Manual Ansible (from WSL)
@@ -57,7 +60,7 @@ Linting: `web/eslint.config.js` (TypeScript ESLint + React Hooks). No test frame
 - `files/bridge.js` — Express backend (single file), deployed to mini PC
 - `files/silverbullet/` — SilverBullet theme (STYLES.md deployed to space/)
 - `files/` — All config files deployed by Ansible (docker-compose, nginx, systemd, etc.)
-- `roles/` — Ansible roles (base, security, tailscale, dns, moonlight, zigbee, webserver)
+- `roles/` — Ansible roles (base, security, tailscale, dns, moonlight, kodi, nas, zigbee, webserver)
 - `playbooks/` — Ansible playbooks (setup.yml for first-time, deploy.yml for updates)
 - `scripts/` — Setup scripts (e.g., `setup-streaming-user.ps1`)
 - `docs/` — Detailed docs on bridge API, DNS, security, troubleshooting
@@ -88,11 +91,11 @@ Linting: `web/eslint.config.js` (TypeScript ESLint + React Hooks). No test frame
 
 All endpoints are under `/api/control/` in production (Nginx proxy strips the prefix). In the bridge code, routes are registered at root (`/health`, `/status`, `/cpu-stats`, etc.).
 
-Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached game list), `/apps/refresh`, `/launch-moonlight?app=X`, `/exit-gaming`, `/cpu-stats`, `/gpu-stats`, `/ram-stats`, `/disk-stats`, `/net-stats`, `/monitor-on`, `/monitor-off`, `/reboot`, `/shutdown`, `/lights` (Zigbee group state + capabilities + per-device `color_hex`/`color_temp` + `timer`), `/lights/group/:groupName/set` (accepts `state`, `brightness`, `color`, `color_temp`), `/lights/:id/set`, `/lights/:id/timer` (set/cancel auto-off timer `{ duration: <minutes> }`), `/controllers` (Xbox controller dongle + connected controllers), `/wifi` (scan results), `/camera/preset/:token` (PTZ presets), `/input/*` (`move`, `click`, `mousedown`, `mouseup`, `scroll`, `key`, `type` — remote input during gaming), `/spotify/auth` + `/spotify/callback` (OAuth flow), `/spotify/status`, `/spotify/logout`, `/spotify/search`, `/spotify/queue` (GET list / POST add), `/spotify/queue-link`, `/spotify/now-playing`, `/spotify/history`, `/spotify/events` (SSE for real-time queue updates).
+Key endpoints: `/health`, `/status` (mode + sunshineOnline), `/apps` (cached game list), `/apps/refresh`, `/launch-moonlight?app=X`, `/exit-gaming`, `/launch-kodi`, `/exit-kodi`, `/kodi/jsonrpc` (proxy to Kodi's JSON-RPC), `/volume` (GET read / POST set system volume), `/cpu-stats`, `/gpu-stats`, `/ram-stats`, `/disk-stats`, `/net-stats`, `/monitor-on`, `/monitor-off`, `/reboot`, `/shutdown`, `/lights` (Zigbee group state + capabilities + per-device `color_hex`/`color_temp` + `timer`), `/lights/group/:groupName/set` (accepts `state`, `brightness`, `color`, `color_temp`), `/lights/:id/set`, `/lights/:id/timer` (set/cancel auto-off timer `{ duration: <minutes> }`), `/controllers` (Xbox controller dongle + connected controllers), `/wifi` (scan results), `/camera/preset/:token` (PTZ presets), `/input/*` (`move`, `click`, `mousedown`, `mouseup`, `scroll`, `key`, `type` — remote input during gaming), `/spotify/auth` + `/spotify/callback` (OAuth flow), `/spotify/status`, `/spotify/logout`, `/spotify/search`, `/spotify/queue` (GET list / POST add), `/spotify/queue-link`, `/spotify/now-playing`, `/spotify/history`, `/spotify/events` (SSE for real-time queue updates).
 
 ## Deployment Flow
 
-`deploy.sh` accepts an optional target argument (`web`, `bridge`, `docker`, or no argument for full). All builds happen on the server — `deploy.sh web` syncs source files (root workspace, `packages/ui/`, `web/`) to `{{ hobbit_dir }}/webapp/` via rsync, runs `npm install` + `npm run build` remotely, then reloads nginx. The server maintains its own `package-lock.json` (the Windows-generated one is not synced, since platform-specific optional deps like rollup binaries differ). Targeted deploys use Ansible `--tags` to run only the relevant subset.
+`deploy.sh` accepts an optional target argument (`web`, `bridge`, `docker`, `kodi`, `nas`, `audio`, or no argument for full). All builds happen on the server — `deploy.sh web` syncs source files (root workspace, `packages/ui/`, `web/`) to `{{ hobbit_dir }}/webapp/` via rsync, runs `npm install` + `npm run build` remotely, then reloads nginx. The server maintains its own `package-lock.json` (the Windows-generated one is not synced, since platform-specific optional deps like rollup binaries differ). Targeted deploys use Ansible `--tags` to run only the relevant subset.
 
 The dev proxy in `web/vite.config.js` points to the real mini PC at `192.168.0.67`, so `npm run dev` talks to the live bridge.
 
@@ -102,4 +105,19 @@ The dev proxy in `web/vite.config.js` points to the real mini PC at `192.168.0.6
 - `group_vars/all.yml` — Gaming PC IP (192.168.0.69), timezone, paths, LAN subnet, `tailscale_fqdn`
 - `docker-compose.yml` (in `files/`) — Nginx, Mosquitto, Zigbee2MQTT, SilverBullet, go2rtc containers
 - `nginx.conf` — Jinja2 template: SPA routing, API proxy, DNS rebinding protection, Tailscale HTTPS server block
+- `group_vars/minipcs/vars.yml` — Per-host vars (`lan_interface`)
 - `hobbit-bridge.service` — Systemd unit for the bridge (auto-restart, runs as hobbit user)
+
+## Audio Pipeline
+
+```
+Kodi / Moonlight → PulseAudio → ALSA (pinned 100%) → Realtek ALC269VC (3.5mm jack)
+```
+
+Three issues were solved to get stereo audio working on the Peladn mini PC:
+
+1. **Missing analog output profile** — The ALC269VC codec needs `model=generic` in `/etc/modprobe.d/snd-hda-intel.conf` (`options snd-hda-intel model=generic`) for PulseAudio's `module-udev-detect` to expose the `output:analog-stereo` profile. Without it, only HDMI outputs appear.
+
+2. **Kodi using ALSA directly** — Kodi's default `audiooutput.audiodevice` is `ALSA:@`, which grabs the sound card exclusively and bypasses PulseAudio. Must be set to `PULSE:Default` (deployed via Ansible `replace` task targeting `guisettings.xml`).
+
+3. **PulseAudio restarting on SSH** — `module-systemd-login` causes PA to restart whenever SSH sessions open/close, killing Kodi's PA connection. Fix: custom `default.pa` that runs `unload-module module-systemd-login` after loading defaults, plus `loginctl enable-linger hobbit` to keep the user session alive.

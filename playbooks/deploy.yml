@@ -184,6 +184,7 @@
       apt:
         name:
           - kodi
+          - kodi-peripheral-joystick
           - intel-media-va-driver-non-free
           - vainfo
         state: present
@@ -206,6 +207,130 @@
         group: hobbit
         mode: '0644'
       tags: [kodi]
+
+    - name: Configure Kodi media sources
+      template:
+        src: ../roles/kodi/templates/sources.xml.j2
+        dest: /home/hobbit/.kodi/userdata/sources.xml
+        owner: hobbit
+        group: hobbit
+        mode: '0644'
+      tags: [kodi]
+
+    - name: Set Kodi audio output to PulseAudio
+      replace:
+        path: /home/hobbit/.kodi/userdata/guisettings.xml
+        regexp: '<setting id="audiooutput.audiodevice">.*</setting>'
+        replace: '<setting id="audiooutput.audiodevice">PULSE:Default</setting>'
+      failed_when: false
+      tags: [kodi, audio]
+
+    # NAS (Samba file sharing)
+    - name: Create media directory
+      file:
+        path: /media/hobbit
+        state: directory
+        owner: hobbit
+        group: hobbit
+        mode: '0755'
+      tags: [nas]
+
+    - name: Install Samba and udisks2
+      apt:
+        name:
+          - samba
+          - udisks2
+        state: present
+      tags: [nas]
+
+    - name: Enable udisks2 service
+      systemd:
+        name: udisks2
+        enabled: yes
+        state: started
+      tags: [nas]
+
+    - name: Configure Samba
+      template:
+        src: ../roles/nas/templates/smb.conf.j2
+        dest: /etc/samba/smb.conf
+      notify: Restart samba
+      tags: [nas]
+
+    - name: Enable Samba services
+      systemd:
+        name: "{{ item }}"
+        enabled: yes
+        state: started
+      loop:
+        - smbd
+        - nmbd
+      tags: [nas]
+
+    - name: Allow Samba through firewall
+      community.general.ufw:
+        rule: allow
+        port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+        from_ip: "{{ lan_subnet }}"
+      loop:
+        - { port: '445', proto: 'tcp' }
+        - { port: '137:138', proto: 'udp' }
+      tags: [nas]
+
+    # Audio: ensure PulseAudio stereo output via analog jack
+    - name: Set ALSA model hint for ALC269VC analog output
+      copy:
+        content: |
+          options snd-hda-intel model=generic
+        dest: /etc/modprobe.d/snd-hda-intel.conf
+        mode: '0644'
+      register: alsa_model_hint
+      tags: [audio]
+
+    - name: Create PulseAudio config directory
+      file:
+        path: /home/hobbit/.config/pulse
+        state: directory
+        owner: hobbit
+        group: hobbit
+        mode: '0755'
+      tags: [audio]
+
+    - name: Configure PulseAudio for stereo output
+      copy:
+        content: |
+          default-sample-channels = 2
+          default-channel-map = front-left,front-right
+        dest: /home/hobbit/.config/pulse/daemon.conf
+        owner: hobbit
+        group: hobbit
+        mode: '0644'
+      register: pulse_daemon_conf
+      tags: [audio]
+
+    - name: Configure PulseAudio to skip session module (prevent SSH restarts)
+      copy:
+        content: |
+          .include /etc/pulse/default.pa
+          # Disable module-systemd-login so SSH sessions don't restart PulseAudio
+          unload-module module-systemd-login
+        dest: /home/hobbit/.config/pulse/default.pa
+        owner: hobbit
+        group: hobbit
+        mode: '0644'
+      register: pulse_default_pa
+      tags: [audio]
+
+    - name: Restart PulseAudio if config changed
+      become: yes
+      become_user: hobbit
+      shell: |
+        export XDG_RUNTIME_DIR=/run/user/1000
+        systemctl --user restart pulseaudio.service
+      when: pulse_daemon_conf.changed or pulse_default_pa.changed
+      changed_when: false
+      tags: [audio]
 
     - name: Copy bridge.js
       copy:
@@ -314,6 +439,11 @@
       shell: |
         cd {{ hobbit_dir }}
         docker compose exec -T webserver nginx -s reload
+
+    - name: Restart samba
+      systemd:
+        name: smbd
+        state: restarted
 
     - name: Restart docker services
       shell: |

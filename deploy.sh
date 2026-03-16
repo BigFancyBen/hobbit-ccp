@@ -8,6 +8,8 @@
 #   bridge   Copy bridge files + npm install + restart bridge service
 #   docker   Sync docker/nginx/mqtt configs + recreate containers
 #   kodi     Install Kodi + VA-API + configure JSON-RPC
+#   nas      Install Samba + configure LAN file sharing
+#   audio    Fix PulseAudio stereo output
 
 set -e
 
@@ -33,12 +35,8 @@ case "$TARGET" in
 
     API_STATUS=$(curl -skf -H "Host: hobbit.local" https://192.168.0.67/api/control/health 2>/dev/null && echo "OK" || echo "FAILED")
     WEB_STATUS=$(curl -skf -H "Host: hobbit.local" https://192.168.0.67/ >/dev/null 2>&1 && echo "OK" || echo "FAILED")
-    REDIRECT_STATUS=$(curl -so /dev/null -w '%{http_code}' -H "Host: hobbit.local" http://192.168.0.67/ 2>/dev/null)
-    [ "$REDIRECT_STATUS" = "301" ] && HTTPS_REDIRECT="OK" || HTTPS_REDIRECT="FAILED"
-
     echo "      Bridge API:      $API_STATUS"
     echo "      Web UI (HTTPS):  $WEB_STATUS"
-    echo "      HTTP→HTTPS:      $HTTPS_REDIRECT"
     echo ""
 
     if [ "$API_STATUS" = "OK" ] && [ "$WEB_STATUS" = "OK" ]; then
@@ -99,9 +97,33 @@ case "$TARGET" in
     echo "=== Kodi Deploy Complete ==="
     ;;
 
+  nas)
+    echo "[1/1] Deploying NAS (Samba) via Ansible..."
+    wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
+        ANSIBLE_CONFIG=./ansible.cfg \
+        ansible-playbook playbooks/deploy.yml --tags nas"
+    echo "      NAS deployed"
+    echo ""
+
+    echo "=== NAS Deploy Complete ==="
+    echo "NOTE: Set Samba password for hobbit user:"
+    echo "  ssh hobbit@192.168.0.67 'sudo smbpasswd -a hobbit'"
+    ;;
+
+  audio)
+    echo "[1/1] Fixing PulseAudio stereo output..."
+    wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
+        ANSIBLE_CONFIG=./ansible.cfg \
+        ansible-playbook playbooks/deploy.yml --tags audio"
+    echo "      Audio configured for stereo"
+    echo ""
+
+    echo "=== Audio Deploy Complete ==="
+    ;;
+
   *)
     echo "Unknown target: $TARGET"
-    echo "Usage: ./deploy.sh [web|bridge|docker|kodi]"
+    echo "Usage: ./deploy.sh [web|bridge|docker|kodi|nas|audio]"
     echo "  (no argument = full deploy)"
     exit 1
     ;;

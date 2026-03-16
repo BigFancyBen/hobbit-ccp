@@ -3,6 +3,7 @@
   apt:
     name:
       - kodi
+      - kodi-peripheral-joystick
       - intel-media-va-driver-non-free
       - vainfo
     state: present

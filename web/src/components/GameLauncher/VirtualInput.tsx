@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { Button } from '@hobbit/ui/8bit/button';
 import { Card } from '@hobbit/ui/8bit/card';
+import { setVolume } from '@/lib/volume';
 
 const API = '/api/control';
 const SENSITIVITY = 2.0;
@@ -190,6 +191,37 @@ export function VirtualInput() {
           </span>
         </div>
       </Card>
+
+      {/* Volume controls */}
+      <div className="flex gap-1.5 shrink-0">
+        <Button
+          variant="outline"
+          size="sm"
+          font="retro"
+          className="flex-1 text-[10px] h-8 active:scale-95 transition-transform touch-manipulation"
+          onClick={() => setVolume({ delta: -10 })}
+        >
+          Vol-
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          font="retro"
+          className="flex-1 text-[10px] h-8 active:scale-95 transition-transform touch-manipulation"
+          onClick={() => setVolume({ muted: 'toggle' })}
+        >
+          Mute
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          font="retro"
+          className="flex-1 text-[10px] h-8 active:scale-95 transition-transform touch-manipulation"
+          onClick={() => setVolume({ delta: 10 })}
+        >
+          Vol+
+        </Button>
+      </div>
 
       {/* Quick keys */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 shrink-0">
