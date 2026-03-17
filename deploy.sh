@@ -16,6 +16,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Convert Git Bash path (/c/Users/...) to WSL path (/mnt/c/Users/...)
+WSL_PROJECT_DIR=$(echo "$SCRIPT_DIR" | sed 's|^/\([a-zA-Z]\)/|/mnt/\L\1/|')
+
 TARGET="${1:-full}"
 
 echo "=== Hobbit Mini PC Deployment (target: $TARGET) ==="
@@ -24,7 +27,7 @@ echo ""
 case "$TARGET" in
   full)
     echo "[1/2] Deploying via Ansible..."
-    wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
+    wsl bash -c "cd $WSL_PROJECT_DIR && \
         ANSIBLE_CONFIG=./ansible.cfg \
         ansible-playbook playbooks/deploy.yml"
     echo "      Ansible deployment complete"
@@ -49,7 +52,7 @@ case "$TARGET" in
 
   web)
     echo "[1/1] Deploying web UI via Ansible..."
-    wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
+    wsl bash -c "cd $WSL_PROJECT_DIR && \
         ANSIBLE_CONFIG=./ansible.cfg \
         ansible-playbook playbooks/deploy.yml --tags web"
     echo "      Web UI deployed"
@@ -60,7 +63,7 @@ case "$TARGET" in
 
   bridge)
     echo "[1/2] Deploying bridge via Ansible..."
-    wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
+    wsl bash -c "cd $WSL_PROJECT_DIR && \
         ANSIBLE_CONFIG=./ansible.cfg \
         ansible-playbook playbooks/deploy.yml --tags bridge"
     echo "      Bridge deployed"
@@ -77,7 +80,7 @@ case "$TARGET" in
 
   docker)
     echo "[1/1] Deploying docker configs via Ansible..."
-    wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
+    wsl bash -c "cd $WSL_PROJECT_DIR && \
         ANSIBLE_CONFIG=./ansible.cfg \
         ansible-playbook playbooks/deploy.yml --tags docker"
     echo "      Docker configs deployed"
@@ -88,7 +91,7 @@ case "$TARGET" in
 
   kodi)
     echo "[1/1] Installing Kodi via Ansible..."
-    wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
+    wsl bash -c "cd $WSL_PROJECT_DIR && \
         ANSIBLE_CONFIG=./ansible.cfg \
         ansible-playbook playbooks/deploy.yml --tags kodi"
     echo "      Kodi installed and configured"
@@ -99,7 +102,7 @@ case "$TARGET" in
 
   nas)
     echo "[1/1] Deploying NAS (Samba) via Ansible..."
-    wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
+    wsl bash -c "cd $WSL_PROJECT_DIR && \
         ANSIBLE_CONFIG=./ansible.cfg \
         ansible-playbook playbooks/deploy.yml --tags nas"
     echo "      NAS deployed"
@@ -112,7 +115,7 @@ case "$TARGET" in
 
   audio)
     echo "[1/1] Fixing PulseAudio stereo output..."
-    wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && \
+    wsl bash -c "cd $WSL_PROJECT_DIR && \
         ANSIBLE_CONFIG=./ansible.cfg \
         ansible-playbook playbooks/deploy.yml --tags audio"
     echo "      Audio configured for stereo"

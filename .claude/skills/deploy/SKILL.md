@@ -16,7 +16,7 @@ Do NOT use `deploy.sh` — the `wsl` command returns a false exit code 1 in this
 Run this command with `timeout: 180000`:
 
 ```
-wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ANSIBLE_CONFIG=./ansible.cfg ansible-playbook playbooks/deploy.yml TAGS 2>&1; echo DEPLOY_EXIT_CODE:\$?"
+wsl bash -c "cd /mnt/c/Users/YOUR_USERNAME/Documents/projects/minipc-setup && ANSIBLE_CONFIG=./ansible.cfg ansible-playbook playbooks/deploy.yml TAGS 2>&1; echo DEPLOY_EXIT_CODE:\$?"
 ```
 
 Where TAGS is:

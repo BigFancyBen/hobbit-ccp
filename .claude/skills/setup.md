@@ -17,7 +17,7 @@ Before running setup:
 Run the setup playbook via WSL (first time requires password):
 
 ```bash
-wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible-playbook playbooks/setup.yml -i inventory.ini -e 'ansible_become_password=\"SUDO_PASSWORD\"'"
+wsl bash -c "cd /mnt/c/Users/YOUR_USERNAME/Documents/projects/minipc-setup && ansible-playbook playbooks/setup.yml -i inventory.ini -e 'ansible_become_password=\"SUDO_PASSWORD\"'"
 ```
 
 This configures passwordless sudo for all future deployments.
@@ -48,7 +48,7 @@ This configures passwordless sudo for all future deployments.
    ssh hobbit@192.168.0.67
    sudo tailscale up
    ```
-   Click auth URL, approve device, note MagicDNS name. Set `tailscale_fqdn` in `group_vars/all.yml`.
+   Click auth URL, approve device, note MagicDNS name. Add `tailscale_fqdn` to vault: `ansible-vault edit group_vars/minipcs/vault.yml`.
    Approve subnet route and configure Split DNS in Tailscale admin console.
 
 3. **Deploy web UI**:

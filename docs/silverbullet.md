@@ -75,7 +75,7 @@ Notes are stored as markdown files in `/home/hobbit/hobbit/space/` on the mini P
 
 1. Edit the vault file:
    ```bash
-   wsl bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ANSIBLE_CONFIG=./ansible.cfg ansible-vault edit group_vars/vault.yml"
+   wsl bash -c "cd /mnt/c/Users/YOUR_USERNAME/Documents/projects/minipc-setup && ANSIBLE_CONFIG=./ansible.cfg ansible-vault edit group_vars/vault.yml"
    ```
 2. Deploy:
    ```bash

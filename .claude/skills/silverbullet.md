@@ -51,6 +51,6 @@ curl -u hobbit:changeme -k -X DELETE https://hobbit.house/sb/<page-name>.md
 ## Notes
 
 - Use `-k` flag with curl when accessing via `hobbit.house` (self-signed SSL cert)
-- No `-k` needed when accessing via `hobbit.tailf803eb.ts.net` (valid Let's Encrypt cert)
+- No `-k` needed when accessing via `<your-tailscale-fqdn>` (valid Let's Encrypt cert)
 - Access is restricted to LAN IPs + Tailscale peers (100.64.0.0/10) in the nginx `/sb/` location block
 - Page data lives in `/home/hobbit/hobbit/space/` on the mini PC

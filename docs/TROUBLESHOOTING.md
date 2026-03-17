@@ -11,7 +11,7 @@ Common issues and solutions for the Hobbit Mini PC setup.
 **Fix**: Allow Docker network through firewall:
 ```bash
 # Via Ansible
-wsl -e bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible hobbit -i inventory.ini -m command -a 'ufw allow from 172.16.0.0/12' -e 'ansible_become_password=\"YOUR_PASSWORD\"' -b"
+wsl -e bash -c "cd /mnt/c/Users/YOUR_USERNAME/Documents/projects/minipc-setup && ansible hobbit -i inventory.ini -m command -a 'ufw allow from 172.16.0.0/12' -e 'ansible_become_password=\"YOUR_PASSWORD\"' -b"
 
 # Or directly on host
 ssh hobbit@hobbit.local
@@ -281,7 +281,7 @@ This shows recent firewall blocks with source IP and port - useful for debugging
 
 Cert may be expired. Renew:
 ```bash
-sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl/tailscale.crt --key-file /home/hobbit/hobbit/ssl/tailscale.key hobbit.tailf803eb.ts.net
+sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl/tailscale.crt --key-file /home/hobbit/hobbit/ssl/tailscale.key <your-tailscale-fqdn>
 docker restart hobbit-webserver-1
 ```
 

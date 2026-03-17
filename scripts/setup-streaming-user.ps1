@@ -7,7 +7,7 @@
     This script creates a passwordless Standard User account called "Invoker"
     with restricted access:
     - Blocked from F: drive
-    - Blocked from C:\Users\Tango (personal files)
+    - Blocked from primary user's profile directory (personal files)
 
     The account is intended for Duo multi-seat streaming sessions.
 
@@ -19,7 +19,7 @@ $ErrorActionPreference = "Stop"
 $Username = "Invoker"
 $UserDescription = "Streaming account for Duo"
 $BlockedDrive = "F:\"
-$BlockedUserProfile = "C:\Users\Tango"
+$BlockedUserProfile = "$env:USERPROFILE"
 
 Write-Host "=== Duo Streaming User Setup ===" -ForegroundColor Cyan
 Write-Host ""

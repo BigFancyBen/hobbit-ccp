@@ -42,13 +42,13 @@ Ansible ignores `ansible.cfg` when run from `/mnt/c/` because Windows mounts are
 
 ```bash
 # From PowerShell/CMD - run via WSL
-wsl -e bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible-playbook playbooks/deploy.yml -i inventory.ini -e 'ansible_become_password=\"YOUR_SUDO_PASSWORD\"'"
+wsl -e bash -c "cd /mnt/c/Users/YOUR_USERNAME/Documents/projects/minipc-setup && ansible-playbook playbooks/deploy.yml -i inventory.ini -e 'ansible_become_password=\"YOUR_SUDO_PASSWORD\"'"
 ```
 
 ### Or from WSL terminal directly:
 
 ```bash
-cd /mnt/c/Users/Tango/Documents/projects/minipc-setup
+cd /mnt/c/Users/YOUR_USERNAME/Documents/projects/minipc-setup
 ansible-playbook playbooks/deploy.yml -i inventory.ini -e 'ansible_become_password="YOUR_SUDO_PASSWORD"'
 ```
 
@@ -57,23 +57,23 @@ ansible-playbook playbooks/deploy.yml -i inventory.ini -e 'ansible_become_passwo
 ### Deploy configuration changes
 
 ```bash
-wsl -e bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible-playbook playbooks/deploy.yml -i inventory.ini -e 'ansible_become_password=\"YOUR_SUDO_PASSWORD\"'"
+wsl -e bash -c "cd /mnt/c/Users/YOUR_USERNAME/Documents/projects/minipc-setup && ansible-playbook playbooks/deploy.yml -i inventory.ini -e 'ansible_become_password=\"YOUR_SUDO_PASSWORD\"'"
 ```
 
 ### Run full setup (first time or major changes)
 
 ```bash
-wsl -e bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible-playbook playbooks/setup.yml -i inventory.ini -e 'ansible_become_password=\"YOUR_SUDO_PASSWORD\"'"
+wsl -e bash -c "cd /mnt/c/Users/YOUR_USERNAME/Documents/projects/minipc-setup && ansible-playbook playbooks/setup.yml -i inventory.ini -e 'ansible_become_password=\"YOUR_SUDO_PASSWORD\"'"
 ```
 
 ### Run ad-hoc commands
 
 ```bash
 # Check uptime on all hosts
-wsl -e bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible all -i inventory.ini -m command -a 'uptime'"
+wsl -e bash -c "cd /mnt/c/Users/YOUR_USERNAME/Documents/projects/minipc-setup && ansible all -i inventory.ini -m command -a 'uptime'"
 
 # Run with sudo
-wsl -e bash -c "cd /mnt/c/Users/Tango/Documents/projects/minipc-setup && ansible hobbit -i inventory.ini -m command -a 'ufw status' -e 'ansible_become_password=\"YOUR_SUDO_PASSWORD\"' -b"
+wsl -e bash -c "cd /mnt/c/Users/YOUR_USERNAME/Documents/projects/minipc-setup && ansible hobbit -i inventory.ini -m command -a 'ufw status' -e 'ansible_become_password=\"YOUR_SUDO_PASSWORD\"' -b"
 ```
 
 ### SSH directly to host

@@ -1,13 +1,13 @@
-# Lorex SL300 Camera — ONVIF Control Reference
+# ONVIF Camera Control Reference
 
-**Camera**: Lorex SL300 (Dahua OEM), firmware 1.000.9110006.1.R
-**IP**: 192.168.0.105, ports 80 (ONVIF HTTP) and 554 (RTSP)
+**Camera**: Any Dahua OEM ONVIF camera (tested with Lorex series)
+**IP**: `<camera-ip>`, ports 80 (ONVIF HTTP) and 554 (RTSP)
 **Auth**: HTTP Digest (`qop=auth`), username `admin`
 **Video source token**: `VideoSource000`, profile: `Profile000`
 
 ## ONVIF Endpoints
 
-All endpoints are at `http://192.168.0.105/onvif/<service>`:
+All endpoints are at `http://<camera-ip>/onvif/<service>`:
 
 | Service | Path | Purpose |
 |---------|------|---------|
@@ -73,11 +73,7 @@ All requests use HTTP Digest auth. Send an unauthenticated POST first to get the
 
 Movement modes: Absolute, Relative, Continuous.
 
-**Saved presets:**
-- `1` — "approach"
-- `2` — "knocking"
-
-Can save, recall, and remove presets via `SetPreset`, `GotoPreset`, `RemovePreset`.
+Presets can be saved, recalled, and removed via `SetPreset`, `GotoPreset`, `RemovePreset`.
 
 ### 3. Video Encoding (Media Service)
 
@@ -119,14 +115,14 @@ Can save, recall, and remove presets via `SetPreset`, `GotoPreset`, `RemovePrese
 ## RTSP Stream URLs
 
 ```
-rtsp://admin:<password>@192.168.0.105:554/cam/realmonitor?channel=1&subtype=0  # Main stream
-rtsp://admin:<password>@192.168.0.105:554/cam/realmonitor?channel=1&subtype=1  # Sub stream
+rtsp://admin:<password>@<camera-ip>:554/cam/realmonitor?channel=1&subtype=0  # Main stream
+rtsp://admin:<password>@<camera-ip>:554/cam/realmonitor?channel=1&subtype=1  # Sub stream
 ```
 
 ## Quick Reference: curl Example
 
 ```bash
-curl -s --max-time 5 -X POST "http://192.168.0.105/onvif/imaging_service" \
+curl -s --max-time 5 -X POST "http://<camera-ip>/onvif/imaging_service" \
   --digest -u 'admin:<password>' \
   -H "Content-Type: application/soap+xml" \
   -d '<SOAP envelope here>'

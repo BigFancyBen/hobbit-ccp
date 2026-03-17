@@ -21,7 +21,7 @@ Phone (remote)
 │  ┌─────────────────────────────────────────────────┐   │
 │  │ Nginx (Docker, ports 80/443)                    │   │
 │  │   hobbit.house → self-signed cert               │   │
-│  │   hobbit.tailf803eb.ts.net → LE cert            │   │
+│  │   <your-tailscale-fqdn> → LE cert            │   │
 │  │                                                  │   │
 │  │   /           → React SPA                       │   │
 │  │   /api/control/ → Bridge (localhost:3001)       │   │
@@ -72,7 +72,7 @@ Docker-published ports (80, 443) bypass UFW entirely (Docker uses iptables FORWA
 | Hostname | Cert Type | Issued By | Validity |
 |----------|-----------|-----------|----------|
 | `hobbit`, `hobbit.local`, `hobbit.house` | Self-signed | openssl | 10 years |
-| `hobbit.tailf803eb.ts.net` | Valid LE | Let's Encrypt (via Tailscale) | 90 days (auto-renewed monthly) |
+| `<your-tailscale-fqdn>` | Valid LE | Let's Encrypt (via Tailscale) | 90 days (auto-renewed monthly) |
 
 The Tailscale cert is provisioned by `tailscale cert` and stored at:
 - `/home/hobbit/hobbit/ssl/tailscale.crt`
@@ -86,7 +86,7 @@ A monthly cron job renews the cert and restarts the nginx container.
 2. **Run setup**: `ansible-playbook playbooks/setup.yml -i inventory.ini` (installs Tailscale)
 3. **Authenticate**: `ssh hobbit@192.168.0.67` then `sudo tailscale up` → click auth URL
 4. **Note the FQDN**: `tailscale status` shows MagicDNS name
-5. **Set variable**: Uncomment `tailscale_fqdn` in `group_vars/all.yml`, set the FQDN
+5. **Set variable**: Add `tailscale_fqdn` to vault: `ansible-vault edit group_vars/minipcs/vault.yml`
 6. **Deploy**: `./deploy.sh` — provisions cert, templates nginx
 7. **Approve subnet route**: Tailscale admin → Machines → hobbit → Edit route settings → approve `192.168.0.0/24`
 8. **Configure Split DNS**: Tailscale admin → DNS → Split DNS → domain `house`, nameserver `100.91.142.95`
@@ -114,7 +114,7 @@ The nginx config (`files/nginx.conf`) is a Jinja2 template with a shared macro t
 # Tailscale HTTPS (LE cert)              ← conditional on tailscale_fqdn
 ```
 
-The Tailscale server blocks only render when `tailscale_fqdn` is defined in `group_vars/all.yml`. This means the config works safely before Tailscale is set up.
+The Tailscale server blocks only render when `tailscale_fqdn` is defined (in vault). This means the config works safely before Tailscale is set up.
 
 ## Ansible Role
 
@@ -144,7 +144,7 @@ To manually renew:
 
 ```bash
 ssh hobbit@192.168.0.67
-sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl/tailscale.crt --key-file /home/hobbit/hobbit/ssl/tailscale.key hobbit.tailf803eb.ts.net
+sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl/tailscale.crt --key-file /home/hobbit/hobbit/ssl/tailscale.key <your-tailscale-fqdn>
 docker restart hobbit-webserver-1
 ```
 
@@ -162,7 +162,7 @@ curl -X POST "https://hobbit.house/api/control/launch-moonlight?app=;id"
 # Expected: 400 {"error":"Unknown app"}
 
 # HTTPS cert valid
-curl -v https://hobbit.tailf803eb.ts.net/ 2>&1 | grep "SSL certificate verify ok"
+curl -v https://<your-tailscale-fqdn>/ 2>&1 | grep "SSL certificate verify ok"
 
 # DNS rebinding blocked
 curl -H "Host: evil.com" http://100.91.142.95/
@@ -182,11 +182,11 @@ curl http://100.91.142.95:3001/health
 3. Is Split DNS configured? Tailscale admin → DNS → Split DNS → `house` domain
 4. Test with Tailscale IP directly: `https://100.91.142.95/`
 
-### HTTPS cert warnings on hobbit.tailf803eb.ts.net
+### HTTPS cert warnings on <your-tailscale-fqdn>
 
 Cert may be expired. Renew:
 ```bash
-sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl/tailscale.crt --key-file /home/hobbit/hobbit/ssl/tailscale.key hobbit.tailf803eb.ts.net
+sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl/tailscale.crt --key-file /home/hobbit/hobbit/ssl/tailscale.key <your-tailscale-fqdn>
 docker restart hobbit-webserver-1
 ```
 

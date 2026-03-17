@@ -11,7 +11,7 @@ Tailscale provides WireGuard-based remote access to the mini PC. No port forward
 
 | Setting | Value |
 |---------|-------|
-| Tailscale FQDN | `hobbit.tailf803eb.ts.net` |
+| Tailscale FQDN | `<your-tailscale-fqdn>` |
 | Tailscale IP | `100.91.142.95` |
 | Subnet routing | `192.168.0.0/24` (LAN advertised) |
 | Split DNS | `house` domain → hobbit's dnsmasq |
@@ -23,7 +23,7 @@ Tailscale provides WireGuard-based remote access to the mini PC. No port forward
 | Service | LAN | Tailscale (remote) |
 |---------|-----|-------------------|
 | Web UI | `https://hobbit.house` | `https://hobbit.house` (via subnet routing) |
-| SilverBullet | `https://hobbit.house/sb/` | `https://hobbit.house/sb/` or `https://hobbit.tailf803eb.ts.net/sb/` |
+| SilverBullet | `https://hobbit.house/sb/` | `https://hobbit.house/sb/` or `https://<your-tailscale-fqdn>/sb/` |
 | Bridge API | `https://hobbit.house/api/control/` | Same (via nginx proxy only) |
 
 # Check Status
@@ -36,7 +36,7 @@ ssh hobbit@192.168.0.67 'tailscale status'
 ssh hobbit@192.168.0.67 'tailscale status --json | grep -A5 AllowedIPs'
 
 # Test cert validity
-curl -v https://hobbit.tailf803eb.ts.net/api/control/health 2>&1 | grep "SSL certificate"
+curl -v https://<your-tailscale-fqdn>/api/control/health 2>&1 | grep "SSL certificate"
 ```
 
 # Cert Renewal
@@ -44,13 +44,13 @@ curl -v https://hobbit.tailf803eb.ts.net/api/control/health 2>&1 | grep "SSL cer
 Certs auto-renew monthly via cron. To manually renew:
 
 ```bash
-ssh hobbit@192.168.0.67 'sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl/tailscale.crt --key-file /home/hobbit/hobbit/ssl/tailscale.key hobbit.tailf803eb.ts.net && docker restart hobbit-webserver-1'
+ssh hobbit@192.168.0.67 'sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl/tailscale.crt --key-file /home/hobbit/hobbit/ssl/tailscale.key <your-tailscale-fqdn> && docker restart hobbit-webserver-1'
 ```
 
 # Adding a New Device
 
 1. Install Tailscale on the device
-2. Sign in with the same account (benadamsdroid@)
+2. Sign in with the same Tailscale account
 3. Approve in admin console if needed
 4. `hobbit.house` resolves automatically (Split DNS)
 
@@ -68,7 +68,7 @@ ssh hobbit@192.168.0.67 'sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl
 |------|---------|
 | `roles/tailscale/tasks/main.yml` | Install Tailscale, IP forwarding, subnet routing, UFW |
 | `files/nginx.conf` | Tailscale HTTPS server block (Jinja2 template) |
-| `group_vars/all.yml` | `tailscale_fqdn` variable |
+| `group_vars/minipcs/vault.yml` | `tailscale_fqdn` variable (encrypted) |
 | `playbooks/deploy.yml` | Cert provisioning + cron renewal |
 
 # Troubleshooting
@@ -80,7 +80,7 @@ ssh hobbit@192.168.0.67 'sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl
 
 **Cert expired / HTTPS errors**
 ```bash
-ssh hobbit@192.168.0.67 'sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl/tailscale.crt --key-file /home/hobbit/hobbit/ssl/tailscale.key hobbit.tailf803eb.ts.net'
+ssh hobbit@192.168.0.67 'sudo tailscale cert --cert-file /home/hobbit/hobbit/ssl/tailscale.crt --key-file /home/hobbit/hobbit/ssl/tailscale.key <your-tailscale-fqdn>'
 ```
 
 **Tailscale not connected**
