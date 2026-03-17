@@ -185,9 +185,20 @@ async function main() {
 
     // ── WiFi ────────────────────────────────────────────────────────────────
     console.log('[9/9] WiFi');
+    // Intercept /wifi API to mask real password
+    await page.route('**/api/control/wifi', async (route) => {
+      const response = await route.fetch();
+      const json = await response.json();
+      await route.fulfill({
+        response,
+        body: JSON.stringify({ ...json, password: 'hunter2' }),
+      });
+    });
     await page.goto(`${BASE_URL}/wifi`, { waitUntil: 'networkidle' });
     await settle(page);
     await capture(page, 'wifi');
+    // Remove the intercept for any subsequent requests
+    await page.unroute('**/api/control/wifi');
 
     console.log('\nDone! Screenshots saved to docs/screenshots/');
     console.log('Tip: run `pngquant --quality=65-80 docs/screenshots/*.png` to optimize file sizes.');

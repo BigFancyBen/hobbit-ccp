@@ -81,8 +81,12 @@ A React SPA with an 8-bit pixel-art UI (8bitcn) served from an always-on mini PC
 
 ### Guest WiFi
 
+<img src="docs/screenshots/wifi.png" width="300" alt="WiFi QR code" align="right" />
+
 - QR code kiosk page at `/wifi`
 - Guests scan to auto-connect — no password typing
+
+<br clear="right" />
 
 ---
 
